@@ -1,0 +1,6 @@
+{
+  "timeZone": "Asia/Tbilisi",
+  "exceptionLogging": "NONE",
+  "runtimeVersion": "V8",
+  "oauthScopes": ["https://www.googleapis.com/auth/spreadsheets"]
+}

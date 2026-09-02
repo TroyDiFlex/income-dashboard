@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru" data-theme="violet">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c0b13"><meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Поток — личная аналитика доходов.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://script.google.com https://*.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="no-referrer"><title>Поток · Доходы</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+<svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16M8 14l4-5 4 3 5-7"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M3 9h18M9 9v12"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 018 0v3M12 14v3"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M5.5 7a8 8 0 0113 0L20 12M4 12l1.5 5a8 8 0 0013 0"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6h12v12"/></symbol>
+<symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5l5 5 5-5M4 16v5h16v-5"/></symbol>
+<symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 7V5a2 2 0 012-2h12v4M18 11h3v6h-3a3 3 0 010-6Z"/><path d="M21 11V9a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-2"/></symbol>
+</defs></svg>
+<div id="lock-screen" class="lock-screen">
+  <div class="lock-brand"><span class="brand-mark">п</span><span>поток<span class="brand-dot">.</span></span></div>
+  <main class="login-card glass">
+    <span class="lock-badge"><svg class="icon"><use href="#i-lock"/></svg> Личное пространство</span>
+    <h1>Ваши доходы.<br><span>Вся картина.</span></h1>
+    <p>Войдите, чтобы открыть аналитику<br>и добавить новые поступления.</p>
+    <form id="login-form">
+      <label for="password">Пароль</label>
+      <div class="password-wrap"><input id="password" type="password" autocomplete="current-password" required placeholder="Введите пароль" minlength="1"><button type="button" id="show-password" class="text-button">Показать</button></div>
+      <p id="login-error" class="error" role="alert"></p>
+      <button id="login-submit" class="button primary" type="submit">Открыть дашборд <svg class="icon"><use href="#i-arrow"/></svg></button>
+    </form>
+    <div class="login-footer"><svg class="icon"><use href="#i-lock"/></svg> Данные доступны только после входа</div>
+  </main>
+  <div class="lock-foot">Личная аналитика · RUB</div>
+</div>
+<div id="workspace" class="workspace" hidden>
+  <aside class="sidebar">
+    <a class="brand" href="#overview"><span class="brand-mark">п</span><span>поток<span class="brand-dot">.</span></span></a>
+    <div class="nav-label">ЛИЧНЫЕ ФИНАНСЫ</div>
+    <nav aria-label="Основная навигация"><a href="#overview" class="nav-item active" data-route="overview"><svg class="icon"><use href="#i-chart"/></svg><span>Обзор доходов</span></a><a href="#entries" class="nav-item" data-route="entries"><svg class="icon"><use href="#i-grid"/></svg><span>Ввод данных</span></a></nav>
+    <div class="sidebar-bottom">
+      <div class="private-note"><span class="status-dot"></span><div>Только для вас<small>Личное пространство</small></div><svg class="icon"><use href="#i-lock"/></svg></div>
+      <button class="nav-item" id="theme-open"><svg class="icon"><use href="#i-sun"/></svg><span>Оформление</span><span class="theme-preview"></span></button>
+      <button class="nav-item" id="logout"><svg class="icon"><use href="#i-lock"/></svg><span>Заблокировать</span></button>
+      <div class="sidebar-caption">Меньше догадок.<br>Больше ясности.</div>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="page-header"><div><div class="eyebrow" id="page-eyebrow">ВАШ ФИНАНСОВЫЙ ПУЛЬС</div><h1 id="page-title">Обзор доходов<span class="title-dot">.</span></h1><p id="page-description">От отдельных поступлений — к полной картине.</p></div><div class="header-actions"><button class="button subtle" id="refresh"><svg class="icon"><use href="#i-refresh"/></svg><span>Обновить</span></button><button class="button primary" id="quick-add"><svg class="icon"><use href="#i-plus"/></svg>Добавить доход</button></div></header>
+    <div id="connection-banner" class="notice" hidden role="status"></div>
+    <section id="overview-view">
+      <div class="filters"><div class="segmented" id="period-tabs" aria-label="Период"><button class="selected" data-period="all">Всё время</button><button data-period="year">Год</button><button data-period="month">Месяц</button><button data-period="custom">Период</button></div><div id="period-controls" class="period-controls"></div><label class="source-filter"><span class="sr-only">Источник дохода</span><select id="source-filter"><option value="all">Все источники</option></select></label></div>
+      <section class="hero-card glass"><div class="chart-heading"><div><div class="card-kicker"><span class="accent-dot"></span> ДИНАМИКА ДОХОДОВ</div><div id="hero-total" class="hero-total">—</div><div id="hero-caption" class="muted"></div></div><div class="chart-heading-right"><div class="segmented chart-types" aria-label="Тип графика"><button data-chart="smooth" class="selected" aria-label="Плавный график" title="Плавный"><svg viewBox="0 0 24 24"><path d="M3 17C8 17 5 7 11 12s6-8 10-8"/></svg></button><button data-chart="bars" aria-label="Столбчатый график" title="Столбцы"><svg viewBox="0 0 24 24"><path d="M5 19V12M12 19V5M19 19V9"/></svg></button><button data-chart="line" aria-label="Линейный график" title="Линия"><svg viewBox="0 0 24 24"><path d="M3 18l6-9 5 4 7-10"/></svg></button></div><span class="chart-unit">₽ / месяц</span></div></div><div id="chart" class="chart" tabindex="0" role="img" aria-label="Доходы по месяцам. Стрелки влево и вправо — просмотр месяцев."></div><div class="chart-bottom"><span id="chart-range"></span><span><i class="legend-line"></i> Общий доход</span></div></section>
+      <section id="metrics" class="metrics" aria-label="Показатели за выбранный период"></section>
+      <section class="breakdowns"><article class="glass share-card"><div class="section-heading"><div><span class="card-kicker">СТРУКТУРА</span><h2>Доля источников</h2></div><span id="share-count" class="small-tag"></span></div><div class="share-body"><div id="donut" class="donut"></div><div id="share-legend" class="share-legend"></div></div></article><article class="glass comparison-card"><div class="section-heading"><div><span class="card-kicker">ВКЛАД В ОБЩИЙ ДОХОД</span><h2>Сравнение источников</h2></div><svg class="icon muted"><use href="#i-arrow"/></svg></div><div id="comparison" class="comparison"></div></article></section>
+      <div class="bottom-note"><span>Расчёты по внесённым данным. Пропуск ≠ нулевой доход.</span><span id="updated-at"></span></div>
+    </section>
+    <section id="entries-view" hidden>
+      <div class="entry-toolbar"><div class="segmented" id="entry-mode"><button data-mode="table" class="selected">Таблица</button><button data-mode="month">По месяцу</button></div><div class="year-navigation"><button id="prev-year" class="icon-button" aria-label="Предыдущий год"><svg class="icon reverse"><use href="#i-chevron"/></svg></button><select id="table-year" aria-label="Год таблицы"></select><button id="next-year" class="icon-button" aria-label="Следующий год"><svg class="icon"><use href="#i-chevron"/></svg></button></div><button id="add-source" class="button subtle"><svg class="icon"><use href="#i-plus"/></svg>Источник</button></div>
+      <div class="glass entry-card"><div id="table-container" class="table-container"></div><form id="month-form" class="month-form" hidden><div class="month-heading"><label>Месяц<input type="month" id="entry-month" required></label><span class="muted">Пустое поле — нет записи.<br>0 — дохода не было.</span></div><div id="month-fields"></div><div class="form-footer"><span id="month-total"></span><button type="submit" class="button primary">Сохранить месяц <svg class="icon"><use href="#i-check"/></svg></button></div><p class="error" id="month-error" role="alert"></p></form></div>
+      <div class="bottom-note"><span>Активные источники сверху, неактивные снизу. Нажмите сумму, чтобы изменить её.</span><button class="text-button" id="export-data"><svg class="icon"><use href="#i-download"/></svg> Скачать CSV</button></div>
+    </section>
+    <footer class="app-footer"><span>ПОТОК <span class="accent-text">/</span> Личная аналитика</span><span>Всё начинается с ясности.</span></footer>
+  </main>
+</div>
+<dialog id="edit-dialog"><form id="edit-form"><div class="dialog-heading"><div><div class="card-kicker">НОВАЯ ЗАПИСЬ</div><h2 id="edit-title">Добавить доход</h2></div><button type="button" class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div><label>Месяц<input id="edit-month" type="month" required></label><label>Источник<select id="edit-source" required></select></label><label>Сумма, ₽<input id="edit-amount" type="text" inputmode="decimal" placeholder="0" autocomplete="off"></label><p class="muted help">Сумма заменяет запись этого источника за месяц. Пустое поле удаляет запись, 0 сохраняется как нулевой доход.</p><p class="error" id="edit-error" role="alert"></p><div class="form-footer"><button type="button" class="button subtle close-dialog">Отмена</button><button type="submit" class="button primary">Сохранить</button></div></form></dialog>
+<dialog id="source-dialog"><form id="source-form"><div class="dialog-heading"><div><div class="card-kicker">ИСТОЧНИК ДОХОДА</div><h2 id="source-title">Новый источник</h2></div><button type="button" class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div><input type="hidden" id="source-id"><label>Название<input id="source-name" type="text" required maxlength="80" placeholder="Например, фриланс"></label><fieldset><legend>Цвет на графиках</legend><div id="source-colors" class="color-options"></div></fieldset><label class="check-label"><input id="source-active" type="checkbox" checked> Активный источник</label><p class="muted help">Активные источники стоят сверху. Неактивные остаются в таблице и участвуют в статистике.</p><p id="source-error" class="error" role="alert"></p><div class="form-footer"><button type="button" class="button subtle close-dialog">Отмена</button><button type="submit" class="button primary">Сохранить</button></div></form></dialog>
+<dialog id="theme-dialog"><div class="dialog-heading"><div><span class="card-kicker">ВАШЕ НАСТРОЕНИЕ</span><h2>Оформление</h2></div><button class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="theme-options"><button data-theme="violet"><span class="theme-swatch violet"></span><b>Аметист</b><small>Тёмный · фиолетовый</small></button><button data-theme="midnight"><span class="theme-swatch midnight"></span><b>Полночь</b><small>Тёмный · голубой</small></button><button data-theme="forest"><span class="theme-swatch forest"></span><b>Лес</b><small>Тёмный · мятный</small></button><button data-theme="light"><span class="theme-swatch light"></span><b>Жемчуг</b><small>Светлый · лиловый</small></button></div></dialog>
+<div id="toast" class="toast" role="status" hidden></div>
+</body></html>

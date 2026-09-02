@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {parseAmount,monthRange,summarize,sortSources,niceCeiling,validateData} from '../model.js';
+const sources=[{id:'a',name:'A',active:false,color:'#a78bfa',order:0},{id:'b',name:'B',active:true,color:'#5ed9bc',order:1}];
+const data={sources,entries:[{month:'2025-01',sourceId:'a',amount:100000},{month:'2025-03',sourceId:'b',amount:0},{month:'2025-03',sourceId:'a',amount:200000}]};
+test('money is exact cents, blank is missing, zero is recorded',()=>{assert.equal(parseAmount(' 20 613,15 ₽'),2061315);assert.equal(parseAmount('0'),0);assert.equal(parseAmount(''),null);for(const value of ['-1','1.234','1e3','NaN','a'])assert.throws(()=>parseAmount(value));});
+test('month ranges cross years',()=>assert.deepEqual(monthRange('2024-12','2025-02'),['2024-12','2025-01','2025-02']));
+test('missing months do not dilute observed average, inactive income included',()=>{const s=summarize(data,'2025-01','2025-03');assert.equal(s.total,300000);assert.equal(s.average,150000);assert.equal(s.months.length,3);assert.equal(s.months[1].count,0);assert.equal(s.activeSources,1);assert.equal(s.sources[0].id,'a');assert.equal(s.best.month,'2025-03');});
+test('explicit zero counts as an observed month',()=>{const s=summarize(data,'2025-01','2025-03','b');assert.equal(s.observed.length,1);assert.equal(s.total,0);assert.equal(s.average,0);});
+test('sorting status never drops inactive sources',()=>assert.deepEqual(sortSources(sources).map(s=>s.id),['b','a']));
+test('ceiling follows scale with modest headroom',()=>{for(const max of [150,2000000,10000000,73000000])assert.ok(niceCeiling(max)>max&&niceCeiling(max)<max*1.4);});
+test('duplicate source/month entries rejected',()=>assert.throws(()=>validateData({...data,entries:[...data.entries,data.entries[0]]})));
