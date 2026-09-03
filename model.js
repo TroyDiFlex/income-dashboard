@@ -6,6 +6,11 @@ export const COLORS = ['#a78bfa','#5ed9bc','#f5bd72','#ec88bf','#79b8ff','#d3d96
 export const validMonth = value => typeof value === 'string' && /^(19|20|21)\d{2}-(0[1-9]|1[0-2])$/.test(value);
 export const monthLabel = (value, short = false) => validMonth(value) ? `${(short ? SHORT_MONTHS : MONTH_NAMES)[Number(value.slice(5))-1]} ${value.slice(0,4)}` : '—';
 export const currentMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+export function shiftMonth(value, offset) {
+  if (!validMonth(value) || !Number.isInteger(offset)) throw new Error('Неверный месяц расчёта.');
+  const index=Number(value.slice(0,4))*12+Number(value.slice(5))-1+offset;
+  return `${Math.floor(index/12)}-${String(index%12+1).padStart(2,'0')}`;
+}
 export function monthRange(from, to) {
   if (!validMonth(from) || !validMonth(to) || from > to) return [];
   const result = []; let y = Number(from.slice(0,4)), m = Number(from.slice(5));
@@ -44,6 +49,46 @@ export function recentMedian(data, selected = 'all', referenceMonth = currentMon
   const middle=Math.floor(values.length/2);
   const median=values.length?(values.length%2?values[middle]:Math.round((values[middle-1]+values[middle])/2)):null;
   return {median,from,to,count:values.length};
+}
+export function percentChange(current, previous) {
+  if(!Number.isSafeInteger(current)||!Number.isSafeInteger(previous)||previous===0)return null;
+  return (current-previous)/Math.abs(previous)*100;
+}
+export function incomeInsights(data, from='', to='', selected='all') {
+  const summary=summarize(data,from,to,selected);
+  const latest=summary.observed.at(-1)||null;
+  const amountFor=month=>{
+    const result=summarize(data,month,month,selected);
+    return result.observed.length?result.total:null;
+  };
+  const comparison=(month,offset)=>{
+    if(!month)return {month:null,amount:null,change:null};
+    const target=shiftMonth(month,offset),amount=amountFor(target);
+    return {month:target,amount,change:amount===null?null:percentChange(latest.total,amount)};
+  };
+  const rolling=months=>{
+    if(!latest)return {from:null,to:null,average:null,count:0};
+    const start=shiftMonth(latest.month,1-months),window=summarize(data,start,latest.month,selected);
+    return {from:start,to:latest.month,average:window.observed.length?window.average:null,count:window.observed.length};
+  };
+  const yearly=new Map(),selection=new Set(Array.isArray(selected)?selected:[selected]);
+  for(const entry of data.entries){
+    if(!selection.has('all')&&!selection.has(entry.sourceId))continue;
+    const year=entry.month.slice(0,4);yearly.set(year,(yearly.get(year)||0)+entry.amount);
+  }
+  const bestYear=[...yearly].map(([year,total])=>({year,total})).sort((a,b)=>b.total-a.total||a.year.localeCompare(b.year))[0]||null;
+  const last12=rolling(12),window=last12.from?summarize(data,last12.from,last12.to,selected).observed:[];
+  const mean=window.length?window.reduce((sum,item)=>sum+item.total,0)/window.length:0;
+  const deviation=window.length>1?Math.sqrt(window.reduce((sum,item)=>sum+(item.total-mean)**2,0)/window.length):null;
+  return {
+    latest,
+    previous:comparison(latest?.month,-1),
+    yearAgo:comparison(latest?.month,-12),
+    rolling6:rolling(6),
+    rolling12:last12,
+    bestYear,
+    variability:deviation===null||mean===0?null:deviation/mean
+  };
 }
 export function niceCeiling(max) {
   if(max<=0)return 10000;

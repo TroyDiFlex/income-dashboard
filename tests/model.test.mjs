@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseAmount,monthRange,summarize,recentMedian,sortSources,niceCeiling,validateData} from '../model.js';
+import {parseAmount,monthRange,shiftMonth,summarize,recentMedian,percentChange,incomeInsights,sortSources,niceCeiling,validateData} from '../model.js';
 const sources=[{id:'a',name:'A',active:false,color:'#a78bfa',order:0},{id:'b',name:'B',active:true,color:'#5ed9bc',order:1}];
 const data={sources,entries:[{month:'2025-01',sourceId:'a',amount:100000},{month:'2025-03',sourceId:'b',amount:0},{month:'2025-03',sourceId:'a',amount:200000}]};
 test('money is exact cents, blank is missing, zero is recorded',()=>{assert.equal(parseAmount(' 20 613,15 ₽'),2061315);assert.equal(parseAmount('0'),0);assert.equal(parseAmount(''),null);for(const value of ['-1','1.234','1e3','NaN','a'])assert.throws(()=>parseAmount(value));});
 test('month ranges cross years',()=>assert.deepEqual(monthRange('2024-12','2025-02'),['2024-12','2025-01','2025-02']));
+test('month shifting crosses year boundaries',()=>{assert.equal(shiftMonth('2025-01',-1),'2024-12');assert.equal(shiftMonth('2025-12',2),'2026-02');assert.throws(()=>shiftMonth('bad',1));});
 test('missing months do not dilute observed average, inactive income included',()=>{const s=summarize(data,'2025-01','2025-03');assert.equal(s.total,300000);assert.equal(s.average,150000);assert.equal(s.months.length,3);assert.equal(s.months[1].count,0);assert.equal(s.activeSources,1);assert.equal(s.sources[0].id,'a');assert.equal(s.best.month,'2025-03');});
 test('explicit zero counts as an observed month',()=>{const s=summarize(data,'2025-01','2025-03','b');assert.equal(s.observed.length,1);assert.equal(s.total,0);assert.equal(s.average,0);});
 test('sorting status never drops inactive sources',()=>assert.deepEqual(sortSources(sources).map(s=>s.id),['b','a']));
@@ -42,4 +43,30 @@ test('six-month median uses monthly totals, missing months and zero have differe
 test('median crosses a year boundary and rounds half cents consistently',()=>{
  const sample={sources,entries:[{month:'2025-12',sourceId:'a',amount:101},{month:'2026-01',sourceId:'a',amount:200}]};
  assert.deepEqual(recentMedian(sample,'all','2026-02'),{median:151,from:'2025-08',to:'2026-01',count:2});
+});
+
+test('income insights compare only recorded months and expose rolling context',()=>{
+ const sample={sources,entries:[
+  {month:'2025-03',sourceId:'a',amount:10000},
+  {month:'2025-04',sourceId:'a',amount:20000},
+  {month:'2026-02',sourceId:'a',amount:30000},
+  {month:'2026-03',sourceId:'a',amount:15000},
+  {month:'2026-03',sourceId:'b',amount:15000}
+ ]};
+ const insight=incomeInsights(sample,'2026-01','2026-03');
+ assert.deepEqual(insight.latest,{month:'2026-03',total:30000,count:2});
+ assert.equal(insight.previous.amount,30000);assert.equal(insight.previous.change,0);
+ assert.equal(insight.yearAgo.amount,10000);assert.equal(insight.yearAgo.change,200);
+ assert.deepEqual(insight.rolling6,{from:'2025-10',to:'2026-03',average:30000,count:2});
+ assert.equal(insight.rolling12.average,26667);assert.equal(insight.rolling12.count,3);
+ assert.deepEqual(insight.bestYear,{year:'2026',total:60000});
+ assert.equal(percentChange(200,100),100);assert.equal(percentChange(100,0),null);
+ assert.ok(insight.variability>=0);
+});
+
+test('income insights keep unavailable comparisons explicit',()=>{
+ const insight=incomeInsights({sources,entries:[{month:'2026-03',sourceId:'a',amount:0}]});
+ assert.equal(insight.previous.amount,null);assert.equal(insight.previous.change,null);
+ assert.equal(insight.yearAgo.amount,null);assert.equal(insight.rolling6.average,0);
+ assert.equal(insight.variability,null);
 });
