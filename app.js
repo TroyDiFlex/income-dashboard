@@ -132,7 +132,39 @@ function renderBreakdowns(s){
  circles.forEach(circle=>circle.remove());
  $('share-legend').innerHTML=s.sources.length?s.sources.map(x=>`<div class="share-item"><i class="source-dot" style="background:${x.color}"></i><span class="label" title="${esc(x.name)}">${esc(x.name)}</span><strong>${total?(100*x[comparisonMode]/total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</strong></div>`).join(''):'<p class="muted help">В этом периоде пока нет записей.</p>';
  renderComparison(s);
+ scheduleShareLayout();
 }
+let shareLayoutFrame=0;
+function scheduleShareLayout(){
+ cancelAnimationFrame(shareLayoutFrame);
+ shareLayoutFrame=requestAnimationFrame(updateShareLayout);
+}
+function updateShareLayout(){
+ const legend=$('share-legend'),card=legend.closest('.share-card'),body=legend.parentElement;
+ if(!card.getClientRects().length)return;
+ const comparison=document.querySelector('.comparison-card'),style=getComputedStyle(card),bodyStyle=getComputedStyle(body);
+ const width=body.clientWidth,compact=parseFloat(style.getPropertyValue('--donut-compact-size'));
+ const beside=Math.abs(card.getBoundingClientRect().top-comparison.getBoundingClientRect().top)<2;
+ // Measure the full-width, wrapped legend independently of the current layout.
+ const probe=legend.cloneNode(true);
+ probe.removeAttribute('id');probe.className='share-legend share-measure';probe.setAttribute('aria-hidden','true');
+ probe.style.width=`${width}px`;card.append(probe);
+ const legendHeight=probe.getBoundingClientRect().height;probe.remove();
+ const available=beside?comparison.getBoundingClientRect().height
+  -parseFloat(style.paddingTop)-parseFloat(style.paddingBottom)
+  -parseFloat(style.borderTopWidth)-parseFloat(style.borderBottomWidth)
+  -card.querySelector('.section-heading').getBoundingClientRect().height-parseFloat(bodyStyle.paddingTop):0;
+ const roomForRing=available-legendHeight-20;
+ const narrow=width<compact+parseFloat(style.getPropertyValue('--share-row-gap'))+150;
+ const stacked=narrow||(legend.children.length>0&&roomForRing>=Math.min(210,width));
+ const size=stacked?Math.floor(Math.min(320,width,Math.max(compact,beside?roomForRing:compact))):compact;
+ card.dataset.shareLayout=stacked?'stacked':'row';
+ card.style.setProperty('--donut-size',`${size}px`);
+}
+// Only the neighbouring card controls the height budget: resizing the ring cannot feed back into it.
+const shareLayoutObserver=new ResizeObserver(scheduleShareLayout);
+for(const element of [document.querySelector('.comparison-card'),$('share-legend').closest('.share-card')])shareLayoutObserver.observe(element);
+document.fonts.ready.then(scheduleShareLayout);
 function renderComparison(s){
  const average=comparisonMode==='average';
  const sources=[...s.sources].sort((a,b)=>b[comparisonMode]-a[comparisonMode]||b.total-a.total);

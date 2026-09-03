@@ -1,4 +1,19 @@
 @charset "UTF-8";
+.share-card{--donut-compact-size:154px;--share-row-gap:25px;display:flex;flex-direction:column;min-width:0}
+.comparison-card{align-self:start;min-width:0}
+.share-card .share-body{flex:1;flex-direction:row;gap:var(--share-row-gap)}
+.share-card .donut{width:var(--donut-size,var(--donut-compact-size));height:var(--donut-size,var(--donut-compact-size));margin:0}
+.share-card .share-legend{width:auto}
+.share-card[data-share-layout=stacked] .share-body{flex-direction:column;justify-content:space-evenly;gap:20px}
+.share-card[data-share-layout=stacked] .share-legend,.share-card .share-measure{display:grid;gap:12px;flex:none;width:100%}
+.share-card[data-share-layout=stacked] .share-item,.share-measure .share-item{grid-template-columns:7px minmax(0,1fr) auto;margin:0}
+.share-card[data-share-layout=stacked] .share-item .label,.share-measure .share-item .label{white-space:normal;overflow-wrap:anywhere}
+.share-card[data-share-layout=stacked] .donut-center strong{font-size:clamp(24px,calc(var(--donut-size)*.15),42px)}
+.share-card[data-share-layout=stacked] .donut-center span{font-size:clamp(10px,calc(var(--donut-size)*.05),13px)}
+.share-card .share-measure{position:absolute;top:0;left:0;visibility:hidden;pointer-events:none}
+@media(min-width:1550px){.share-card{--share-row-gap:40px}}
+@media(max-width:1150px){.share-card{--donut-compact-size:125px;--share-row-gap:15px}}
+@media(max-width:900px){.share-card{--donut-compact-size:140px;--share-row-gap:22px}}
 .comparison-mode{margin-top:18px;max-width:100%;width:fit-content}
 .comparison-mode button{min-height:36px}
 .comparison-card .comparison{padding-top:20px}
