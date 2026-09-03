@@ -111,9 +111,19 @@ try {
 
   {
     const {page,context} = await start('violet');
+    await page.locator('#source-filter-trigger').click();
+    for (const id of ['salary','freelance','consulting']) {
+      await page.locator(`.source-filter-option:has([data-filter-source][value="${id}"])`).click();
+    }
+    await page.locator('#source-filter-trigger').click();
+    await settle(page);
+    assert.equal(await page.locator('#chart .data-line').count(),4);
+    assert.equal(await page.locator('#source-filter-label').textContent(),'Все источники + 3');
+    const coverTotal = summarize(demoData()).total / 100;
+    assert.equal(Number((await page.locator('#hero-total').textContent()).replace(/\D/g,'')),coverTotal);
     const overviewHeight = await page.locator('.breakdowns').evaluate(element => Math.floor(element.getBoundingClientRect().top) - 1);
     await page.setViewportSize({width:1600,height:overviewHeight});
-    await capture(page,'overview-violet','Обзор за всё время · Аметист');
+    await capture(page,'overview-violet','Обзор: общая сумма и три источника · Аметист');
     await entries(page,'month');
     await page.setViewportSize({width:1600,height:1140});
     await capture(page,'month-violet','Ввод за август 2026 · Аметист');
