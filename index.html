@@ -31,6 +31,11 @@
     <span class="lock-badge"><svg class="icon"><use href="#i-lock"/></svg> Личное пространство</span>
     <h1>Ваши доходы.<br><span>Вся картина.</span></h1>
     <p>Войдите, чтобы открыть аналитику<br>и добавить новые поступления.</p>
+    <div id="session-status" hidden>
+      <p id="session-message" role="status">Восстанавливаем вход…</p>
+      <button id="session-retry" class="button primary" type="button" hidden>Повторить</button>
+      <button id="session-reset" class="text-button" type="button">Войти заново</button>
+    </div>
     <form id="login-form">
       <label for="password">Пароль</label>
       <div class="password-wrap"><input id="password" type="password" autocomplete="current-password" required placeholder="Введите пароль" minlength="1"><button type="button" id="show-password" class="text-button">Показать</button></div>
@@ -49,7 +54,7 @@
     <div class="sidebar-bottom">
       <div class="private-note"><span class="status-dot"></span><div>Только для вас<small>Личное пространство</small></div><svg class="icon"><use href="#i-lock"/></svg></div>
       <button class="nav-item" id="theme-open"><svg class="icon"><use href="#i-sun"/></svg><span>Оформление</span><span class="theme-preview"></span></button>
-      <button class="nav-item" id="logout"><svg class="icon"><use href="#i-lock"/></svg><span>Заблокировать</span></button>
+      <button class="nav-item" id="logout"><svg class="icon"><use href="#i-lock"/></svg><span>Выйти</span></button>
       <div class="sidebar-caption">Меньше догадок.<br>Больше ясности.</div>
     </div>
   </aside>

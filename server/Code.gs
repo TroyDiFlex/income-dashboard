@@ -5,7 +5,8 @@
  * AUTH_HASH = SHA-256(hex(PBKDF2-SHA256(password, UTF8(AUTH_SALT), 600000, 32))).
  * Every data operation requires an expiring random bearer session.
  */
-function doGet() { return json_({ok:true,result:{service:'potok',version:1}}); }
+var SESSION_DURATION_MS_=30*24*60*60*1000;
+function doGet() { return json_({ok:true,result:{service:'potok',version:2}}); }
 function doPost(e) {
   try {
     if(!e || !e.postData || e.postData.contents.length>200000) fail_('BAD_REQUEST','Некорректный запрос.');
@@ -23,7 +24,7 @@ function dispatch_(body) {
   if(body.action==='bootstrap')return {salt:properties.getProperty('AUTH_SALT'),iterations:600000};
   if(body.action==='login')return login_(body.proof);
   requireSession_(body.token);
-  if(body.action==='logout'){CacheService.getScriptCache().remove(sessionKey_(body.token));return {loggedOut:true};}
+  if(body.action==='logout'){properties.deleteProperty(sessionKey_(body.token));CacheService.getScriptCache().remove(sessionKey_(body.token));return {loggedOut:true};}
   if(body.action==='read')return read_();
   if(body.action==='mutate')return mutate_(body);
   fail_('BAD_REQUEST','Неизвестное действие.');
@@ -45,12 +46,25 @@ function login_(proof){
       fail_('AUTH','Неверный пароль.');
     }
     cache.remove('login-failures');
+    var data=read_(),properties=PropertiesService.getScriptProperties(),now=Date.now();
+    // Session validity must not depend on an evictable six-hour cache.
+    var saved=properties.getProperties();
+    Object.keys(saved).forEach(function(key){if(key.indexOf('session:')===0&&!(Number(saved[key])>now))properties.deleteProperty(key);});
     var token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
-    cache.put(sessionKey_(token),'1',21600);
-    return {token:token,expiresAt:Date.now()+21600000,data:read_()};
+    var expiresAt=now+SESSION_DURATION_MS_;
+    properties.setProperty(sessionKey_(token),String(expiresAt));
+    return {token:token,expiresAt:expiresAt,data:data};
   } finally{lock.releaseLock();}
 }
-function requireSession_(token){if(typeof token!=='string'||! /^[0-9a-f]{64}$/.test(token)||!CacheService.getScriptCache().get(sessionKey_(token)))fail_('SESSION','Сессия закончилась. Войдите снова.');}
+function requireSession_(token){
+  if(typeof token!=='string'||! /^[0-9a-f]{64}$/.test(token))fail_('SESSION','Сессия закончилась. Войдите снова.');
+  var key=sessionKey_(token),properties=PropertiesService.getScriptProperties(),expiresAt=properties.getProperty(key);
+  if(expiresAt!==null){
+    if(Number(expiresAt)>Date.now())return;
+    properties.deleteProperty(key);
+  }else if(CacheService.getScriptCache().get(key))return; // Honor sessions issued before this update until they expire.
+  fail_('SESSION','Сессия закончилась. Войдите снова.');
+}
 function sheets_(){var book=SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID'));var sources=book.getSheetByName('Источники'),entries=book.getSheetByName('Доходы');if(!sources||!entries)fail_('SCHEMA','В таблице отсутствуют вкладки «Источники» или «Доходы».');return {sources:sources,entries:entries};}
 function rows_(sheet,columns){var count=sheet.getLastRow()-1;return count>0?sheet.getRange(2,1,count,columns).getValues().filter(function(r){return r.some(function(v){return v!=='';});}):[];}
 function read_(){
