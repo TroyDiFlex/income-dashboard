@@ -131,7 +131,7 @@ function chartTooltip(index){
  $('crosshair').setAttribute('x1',x(index));$('crosshair').setAttribute('x2',x(index));$('crosshair').setAttribute('opacity','.5');
  hoverSeries.forEach((series,i)=>{const point=series.months[index],dot=$('hover-dot-'+i);dot.setAttribute('cx',x(index));dot.setAttribute('cy',y(point.total));dot.setAttribute('opacity',point.count?'1':'0');});
 }
-$('chart').addEventListener('pointermove',e=>{if(chartModel&&!e.target.closest('.tooltip')){const r=$('chart').getBoundingClientRect();chartTooltip(Math.floor(((e.clientX-r.left)*chartModel.width/r.width-chartModel.left)/chartModel.step));}});
+$('chart').addEventListener('pointermove',e=>{if(chartModel){const r=$('chart').getBoundingClientRect();chartTooltip(Math.floor(((e.clientX-r.left)*chartModel.width/r.width-chartModel.left)/chartModel.step));}});
 $('chart').addEventListener('pointerleave',hideChartTooltip);
 $('chart').addEventListener('blur',hideChartTooltip);
 $('chart').addEventListener('keydown',e=>{if(!chartModel)return;if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();chartTooltip(chartSelection+(e.key==='ArrowRight'?1:-1));}if(e.key==='Escape')hideChartTooltip();});
