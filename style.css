@@ -72,6 +72,8 @@ input:focus-visible+.source-checkbox{outline:2px solid var(--accent);outline-off
 .app-footer>.install-button .icon{width:11px;height:11px}
 .app-footer>.install-button::before{content:"";position:absolute;left:0;right:0;top:50%;height:44px;transform:translateY(-50%)}
 .app-footer>.install-button:hover{color:var(--muted)}
+.app-footer>.footer-tagline{display:none;margin-left:auto}
+.app-footer>.install-button[hidden]+.footer-tagline{display:block}
 .install-instructions{display:grid;gap:20px;font-size:14px;line-height:1.65}
 .install-instructions h3{font-size:16px;font-weight:600;margin-bottom:6px}
 html[data-standalone] .lock-screen{padding-top:calc(30px + env(safe-area-inset-top));padding-bottom:calc(30px + env(safe-area-inset-bottom));padding-left:calc(18px + env(safe-area-inset-left));padding-right:calc(18px + env(safe-area-inset-right))}
