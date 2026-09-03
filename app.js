@@ -108,8 +108,12 @@ function hideChartTooltip(){if($('chart-tooltip'))$('chart-tooltip').hidden=true
 function chartTooltip(index){
  if(!chartModel)return;
  const {s,x,y,width,model,hoverSeries}=chartModel;
- index=Math.max(0,Math.min(s.months.length-1,index));chartSelection=index;
+ index=Math.max(0,Math.min(s.months.length-1,index));
  const m=s.months[index],tip=$('chart-tooltip');
+ if(index===chartSelection&&!tip.hidden)return;
+ chartSelection=index;
+ // Start each hover at its selected month; animate only subsequent movement.
+ tip.style.transition=tip.hidden?'none':'';
  let rows=chartType==='bars'?model.bars:model.lines.filter(series=>series.id!=='all');
  if(sourceFilter.length===1&&sourceFilter[0]==='all')rows=sortSources(data.sources).map(src=>({...src,months:summarize(data,...periodBounds(),src.id).months}));
  tip.innerHTML=`<small>${monthLabel(m.month)} · ${sourceFilter.includes('all')?'Все источники':'Выбранные источники'}</small><b>${m.count?esc(money(m.total)):'Нет записей'}</b>`+rows.map(series=>{
@@ -117,8 +121,13 @@ function chartTooltip(index){
  }).join('');
  tip.hidden=false;
  const highest=hoverSeries.reduce((max,series)=>Math.max(max,series.months[index].total),0);
- tip.style.left=Math.max(0,Math.min(width-tip.offsetWidth,x(index)+12))+'px';
- tip.style.top=Math.max(0,Math.min($('chart').clientHeight-tip.offsetHeight-20,y(highest)-tip.offsetHeight-15))+'px';
+ const chart=$('chart'),gap=16,pointX=x(index)*chart.clientWidth/width;
+ const tipWidth=tip.offsetWidth,tipHeight=tip.offsetHeight;
+ // Prefer the left of the crosshair, flipping right only near the left edge.
+ const beside=pointX-tipWidth-gap>=0?pointX-tipWidth-gap:pointX+gap;
+ const tipX=Math.max(0,Math.min(chart.clientWidth-tipWidth,beside));
+ const tipY=Math.max(0,Math.min(chart.clientHeight-tipHeight-20,y(highest)-tipHeight-15));
+ tip.style.transform=`translate3d(${tipX}px,${tipY}px,0)`;
  $('crosshair').setAttribute('x1',x(index));$('crosshair').setAttribute('x2',x(index));$('crosshair').setAttribute('opacity','.5');
  hoverSeries.forEach((series,i)=>{const point=series.months[index],dot=$('hover-dot-'+i);dot.setAttribute('cx',x(index));dot.setAttribute('cy',y(point.total));dot.setAttribute('opacity',point.count?'1':'0');});
 }
