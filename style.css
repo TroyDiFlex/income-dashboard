@@ -1,4 +1,10 @@
 @charset "UTF-8";
+.comparison-mode{margin-top:18px;max-width:100%;width:fit-content}
+.comparison-mode button{min-height:36px}
+.comparison-card .comparison{padding-top:20px}
+.comparison-meta{gap:8px;line-height:1.5}
+@media(max-width:900px) and (min-width:651px){.comparison-mode{width:100%}.comparison-mode button{padding:7px 8px;font-size:11px}}
+@media(max-width:650px){.comparison-mode{width:100%}.comparison-mode button{flex:1;min-height:40px}.comparison-mode button:last-child{flex:2}.comparison-heading>span:nth-child(2){min-width:0}}
 ::selection{background:var(--accent);color:var(--bg);text-shadow:none}
 /* Multi-source picker and charts inherit all four dashboard themes. */
 .source-filter{position:relative;min-width:210px;max-width:320px}

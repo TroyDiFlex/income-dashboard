@@ -30,9 +30,19 @@ export function summarize(data, from, to, selected = 'all') {
   const bySource=new Map(data.sources.map(s=>[s.id,{...s,total:0,count:0}]));
   relevant.forEach(e=>{const m=byMonth.get(e.month), s=bySource.get(e.sourceId); if(m){m.total+=e.amount;m.count++;} if(s){s.total+=e.amount;s.count++;}});
   const observed=months.filter(m=>m.count>0), total=relevant.reduce((s,e)=>s+e.amount,0);
-  const sources=[...bySource.values()].filter(s=>s.count>0).sort((a,b)=>b.total-a.total);
+  const sources=[...bySource.values()].filter(s=>s.count>0).map(s=>({...s,average:Math.round(s.total/s.count)})).sort((a,b)=>b.total-a.total);
   const best=observed.reduce((best,m)=>!best||m.total>best.total?m:best,null);
   return {months,observed,total,sources,best,average:observed.length?Math.round(total/observed.length):0,activeSources:data.sources.filter(s=>s.active).length,totalSources:data.sources.length,recordCount:relevant.length};
+}
+export function recentMedian(data, selected = 'all', referenceMonth = currentMonth()) {
+  if(!validMonth(referenceMonth))throw new Error('Неверный месяц расчёта.');
+  const year=Number(referenceMonth.slice(0,4)),month=Number(referenceMonth.slice(5))-1;
+  const key=offset=>{const index=year*12+month+offset;return `${Math.floor(index/12)}-${String(index%12+1).padStart(2,'0')}`;};
+  const from=key(-6),to=key(-1);
+  const values=summarize(data,from,to,selected).observed.map(m=>m.total).sort((a,b)=>a-b);
+  const middle=Math.floor(values.length/2);
+  const median=values.length?(values.length%2?values[middle]:Math.round((values[middle-1]+values[middle])/2)):null;
+  return {median,from,to,count:values.length};
 }
 export function niceCeiling(max) {
   if(max<=0)return 10000;

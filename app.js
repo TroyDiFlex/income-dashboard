@@ -1,11 +1,13 @@
 import {CONFIG} from './config.js';
 import {Api,SESSION_KEY} from './api.js';
 import {incomeChart,chartGeometry,lineRevealStarts} from './chart.js';
-import {MONTH_NAMES,COLORS,currentMonth,monthLabel,monthRange,parseAmount,money,number,sortSources,summarize,validateData,validMonth} from './model.js';
+import {MONTH_NAMES,COLORS,currentMonth,monthLabel,monthRange,parseAmount,money,number,sortSources,summarize,recentMedian,validateData,validMonth} from './model.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ico=name=>`<svg class="icon"><use href="#i-${name}"/></svg>`;
 const api=new Api();
+let comparisonMode='total';
+try{const saved=localStorage.getItem('potok-comparison-mode');if(['total','average'].includes(saved))comparisonMode=saved;}catch{}
 let data=null,view='overview',period='all',chartType='line',sourceFilter=['all'],selectedYear=currentMonth().slice(0,4),selectedMonth=currentMonth(),customFrom='',customTo='',tableYear=currentMonth().slice(0,4),entryMode=matchMedia('(max-width:650px)').matches?'month':'table',sourceColor=COLORS[0],busy=false,chartSelection=-1,toastTimer,authAttempt=0,restoring=false;
 function theme(value){if(!['violet','midnight','forest','light'].includes(value))value='violet';document.documentElement.dataset.theme=value;try{localStorage.setItem('potok-theme',value);}catch{}document.querySelectorAll('.theme-options button').forEach(b=>b.classList.toggle('selected',b.dataset.theme===value));}
 try{theme(localStorage.getItem('potok-theme')||'violet');}catch{theme('violet');}
@@ -84,8 +86,42 @@ $('source-filter-options').addEventListener('change',e=>{
 $('source-toggle-all').addEventListener('change',()=>{if(!data)return;sourceFilter=$('source-toggle-all').checked?['all',...sortSources(data.sources).map(s=>s.id)]:[];saveSourceFilter();updateSourceFilter();renderOverview({newSourcesOnly:true});});
 document.querySelectorAll('[data-chart]').forEach(b=>b.addEventListener('click',()=>{chartType=b.dataset.chart;document.querySelectorAll('[data-chart]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});renderChart();}));
 function render(){if(!data)return;const previous=sourceFilter.length;sourceFilter=sourceFilter.filter(id=>id==='all'||data.sources.some(s=>s.id===id));if(previous&&!sourceFilter.length)sourceFilter=['all'];renderSourceFilter();renderPeriod();renderOverview();if(view==='entries')renderEntries();$('updated-at').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
-function renderOverview(chartOptions){if(!data)return;const [from,to]=periodBounds(),s=summarize(data,from,to,sourceFilter);$('hero-total').innerHTML=sourceFilter.length?esc(money(s.total)).replace(/₽/,'<span class="currency">₽</span>'):'—';$('hero-caption').textContent=`${s.observed.length} мес. с записями · ${sourceSelectionLabel()}`;const metrics=[['Общий доход',money(s.total),`${s.recordCount} записей за период`,'wallet'],['В среднем за месяц',money(s.average),'Только месяцы с записями','chart'],['Лучший месяц',s.best?monthLabel(s.best.month,true):'—',s.best?money(s.best.total):'Нет записей','arrow'],['Активные источники',String(s.activeSources),'Текущий статус источников','check'],['Всего источников',String(s.totalSources),`${s.sources.length} с записями в периоде`,'grid'],['Самый прибыльный',s.sources[0]?.name||'—',s.sources[0]?money(s.sources[0].total):'Нет записей','arrow']];$('metrics').innerHTML=metrics.map((m,i)=>`<article class="metric"><div class="metric-label">${esc(m[0])}${ico(m[3])}</div><div class="metric-value ${i===5?'name':''}">${esc(m[1])}</div><div class="metric-foot">${esc(m[2])}</div></article>`).join('');renderBreakdowns(s);renderChart(chartOptions);}
-function renderBreakdowns(s){$('share-count').textContent=`${s.sources.length} ист.`;let offset=0;const positive=s.sources.filter(x=>x.total>0);const circumference=2*Math.PI*63;const rings=positive.map(x=>{const fraction=x.total/s.total,dash=Math.max(0,circumference*fraction-3);const svg=`<circle cx="80" cy="80" r="63" stroke="${x.color}" stroke-dasharray="${dash} ${circumference-dash}" stroke-dashoffset="${-offset}"/>`;offset+=circumference*fraction;return svg;}).join('');$('donut').innerHTML=`<svg viewBox="0 0 160 160" role="img" aria-label="Доли источников дохода"><circle cx="80" cy="80" r="63" stroke="var(--grid)"/>${rings}</svg><div class="donut-center"><strong>${s.total?'100%':'—'}</strong><span>${s.total?'общий доход':'нет дохода'}</span></div>`;$('share-legend').innerHTML=s.sources.length?s.sources.map(x=>`<div class="share-item"><i class="source-dot" style="background:${x.color}"></i><span class="label" title="${esc(x.name)}">${esc(x.name)}</span><strong>${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</strong></div>`).join(''):'<p class="muted help">В этом периоде пока нет записей.</p>';$('comparison').innerHTML=s.sources.length?s.sources.map(x=>`<div class="comparison-item"><div class="comparison-heading"><i class="source-dot" style="background:${x.color}"></i><span>${esc(x.name)}</span><strong>${esc(money(x.total))}</strong></div><div class="bar-track"><div class="bar-fill" style="width:${s.sources[0].total?x.total/s.sources[0].total*100:0}%;background:${x.color}"></div></div><div class="comparison-meta"><span>${x.active?'Активный':'Неактивный'} · ${x.count} мес.</span><span>${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</span></div></div>`).join(''):'<div class="empty-state"><h3>Пока нечего сравнивать</h3>Выберите другой период или добавьте доход.</div>';}
+function renderOverview(chartOptions){
+ if(!data)return;
+ const [from,to]=periodBounds(),s=summarize(data,from,to,sourceFilter),recent=recentMedian(data,sourceFilter);
+ $('hero-total').innerHTML=sourceFilter.length?esc(money(s.total)).replace(/₽/,'<span class="currency">₽</span>'):'—';
+ $('hero-caption').textContent=`${s.observed.length} мес. с записями · ${sourceSelectionLabel()}`;
+ const medianNote=`${monthLabel(recent.from)} — ${monthLabel(recent.to)}. Месяцев с записями: ${recent.count} из 6. Учитываются выбранные источники. Период этой карточки фиксирован; пропуски не считаются нулём.`;
+ const metrics=[
+  ['Общий доход',money(s.total),`${s.recordCount} записей за период`,'wallet'],
+  ['В среднем за месяц',money(s.average),'Только месяцы с записями','chart'],
+  ['Лучший месяц',s.best?monthLabel(s.best.month,true):'—',s.best?money(s.best.total):'Нет записей','arrow'],
+  ['Источники',`${s.activeSources} из ${s.totalSources}`,'активны сейчас','check'],
+  ['Медианный доход',recent.median===null?'—':money(recent.median),`Последние 6 полных мес. · ${recent.count}/6 с записями`,'chart',medianNote],
+  ['Самый прибыльный',s.sources[0]?.name||'—',s.sources[0]?money(s.sources[0].total):'Нет записей','arrow']
+ ];
+ $('metrics').innerHTML=metrics.map((m,i)=>`<article class="metric"${m[4]?` title="${esc(m[4])}"`:''}><div class="metric-label">${esc(m[0])}${ico(m[3])}</div><div class="metric-value ${i===5?'name':''}">${esc(m[1])}</div><div class="metric-foot">${esc(m[2])}</div></article>`).join('');
+ renderBreakdowns(s);renderChart(chartOptions);
+}
+function renderBreakdowns(s){$('share-count').textContent=`${s.sources.length} ист.`;let offset=0;const positive=s.sources.filter(x=>x.total>0);const circumference=2*Math.PI*63;const rings=positive.map(x=>{const fraction=x.total/s.total,dash=Math.max(0,circumference*fraction-3);const svg=`<circle cx="80" cy="80" r="63" stroke="${x.color}" stroke-dasharray="${dash} ${circumference-dash}" stroke-dashoffset="${-offset}"/>`;offset+=circumference*fraction;return svg;}).join('');$('donut').innerHTML=`<svg viewBox="0 0 160 160" role="img" aria-label="Доли источников дохода"><circle cx="80" cy="80" r="63" stroke="var(--grid)"/>${rings}</svg><div class="donut-center"><strong>${s.total?'100%':'—'}</strong><span>${s.total?'общий доход':'нет дохода'}</span></div>`;$('share-legend').innerHTML=s.sources.length?s.sources.map(x=>`<div class="share-item"><i class="source-dot" style="background:${x.color}"></i><span class="label" title="${esc(x.name)}">${esc(x.name)}</span><strong>${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</strong></div>`).join(''):'<p class="muted help">В этом периоде пока нет записей.</p>';renderComparison(s);}
+function renderComparison(s){
+ const average=comparisonMode==='average';
+ const sources=[...s.sources].sort((a,b)=>b[comparisonMode]-a[comparisonMode]||b.total-a.total);
+ const maximum=sources[0]?.[comparisonMode]||0;
+ document.querySelectorAll('[data-comparison]').forEach(button=>{
+  const selected=button.dataset.comparison===comparisonMode;
+  button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));
+ });
+ $('comparison-kicker').textContent=average?'ДОХОД ЗА МЕСЯЦ С ЗАПИСЬЮ':'ВКЛАД В ОБЩИЙ ДОХОД';
+ $('comparison').innerHTML=sources.length?sources.map(x=>`<div class="comparison-item"><div class="comparison-heading"><i class="source-dot" style="background:${x.color}"></i><span title="${esc(x.name)}">${esc(x.name)}</span><strong>${esc(money(x[comparisonMode]))}</strong></div><div class="bar-track"><div class="bar-fill" style="width:${maximum?x[comparisonMode]/maximum*100:0}%;background:${x.color}"></div></div><div class="comparison-meta"><span>${x.active?'Активный':'Неактивный'} · ${x.count} мес. с записями</span>${average?'':`<span>${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</span>`}</div></div>`).join(''):'<div class="empty-state"><h3>Пока нечего сравнивать</h3>Выберите другой период или добавьте доход.</div>';
+}
+$('comparison-mode').addEventListener('click',e=>{
+ const button=e.target.closest('[data-comparison]');if(!button||!data)return;
+ const mode=button.dataset.comparison;if(!['total','average'].includes(mode)||mode===comparisonMode)return;
+ comparisonMode=mode;try{localStorage.setItem('potok-comparison-mode',mode);}catch{}
+ renderComparison(summarize(data,...periodBounds(),sourceFilter));
+});
+
 let chartModel=null;
 function renderChart({animate=true,newSourcesOnly=false}={}){
  if(!data||view!=='overview')return;
