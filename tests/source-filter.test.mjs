@@ -6,7 +6,7 @@ import {sortSources} from '../model.js';
 
 const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
-const pickerCode=app.slice(app.indexOf('function sourceSelectionLabel()'),app.indexOf("document.querySelectorAll('[data-chart]')"));
+const pickerCode=app.slice(app.indexOf('function restoreSourceFilter()'),app.indexOf("document.querySelectorAll('[data-chart]')"));
 function picker(){
  const nodes=new Map();let focused=null,renders=0;
  const $=id=>{
