@@ -24,9 +24,10 @@ test('only the month overview option is hidden; monthly data entry is retained',
  assert.match(css,/\[hidden\]\{display:none!important\}/);
 });
 
-test('source palette preserves every existing color and adds five distinct valid colors',()=>{
- assert.deepEqual(COLORS.slice(0,8),['#a78bfa','#5ed9bc','#f5bd72','#ec88bf','#79b8ff','#d3d96c','#ff9292','#b5b0ce']);
- assert.equal(COLORS.length,13);
+test('source palette preserves every existing color and offers 22 distinct valid colors',()=>{
+ assert.deepEqual(COLORS.slice(0,13),['#a78bfa','#5ed9bc','#f5bd72','#ec88bf','#79b8ff','#d3d96c','#ff9292','#b5b0ce','#68c8d9','#8f9bea','#d99caa','#d99b7c','#94c987']);
+ assert.deepEqual(COLORS.slice(13),['#ef5b62','#f29a45','#f1cd4f','#4fc773','#267f92','#3d78cf','#7b5aa6','#a94750','#4b8f61']);
+ assert.equal(COLORS.length,22);
  assert.equal(new Set(COLORS).size,COLORS.length);
  for(const color of COLORS){
   assert.match(color,/^#[0-9a-f]{6}$/);

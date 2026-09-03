@@ -1,7 +1,8 @@
 export const MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 export const SHORT_MONTHS = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 export const COLORS = ['#a78bfa','#5ed9bc','#f5bd72','#ec88bf','#79b8ff','#d3d96c','#ff9292','#b5b0ce',
-  '#68c8d9','#8f9bea','#d99caa','#d99b7c','#94c987'];
+  '#68c8d9','#8f9bea','#d99caa','#d99b7c','#94c987','#ef5b62','#f29a45','#f1cd4f','#4fc773',
+  '#267f92','#3d78cf','#7b5aa6','#a94750','#4b8f61'];
 export const validMonth = value => typeof value === 'string' && /^(19|20|21)\d{2}-(0[1-9]|1[0-2])$/.test(value);
 export const monthLabel = (value, short = false) => validMonth(value) ? `${(short ? SHORT_MONTHS : MONTH_NAMES)[Number(value.slice(5))-1]} ${value.slice(0,4)}` : '—';
 export const currentMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
