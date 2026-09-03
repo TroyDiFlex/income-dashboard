@@ -7,6 +7,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://script.google.com https://*.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="referrer" content="no-referrer"><title>Поток · Доходы</title>
   <link rel="icon" href="icon.svg?v=3" type="image/svg+xml" sizes="any"><link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" sizes="180x180">
+  <script src="pwa.js" defer></script>
   <script type="module" src="app.js?v=2"></script>
 </head>
 <body>
@@ -44,6 +47,7 @@
       <button id="login-submit" class="button primary" type="submit">Открыть дашборд <svg class="icon"><use href="#i-arrow"/></svg></button>
     </form>
     <div class="login-footer"><svg class="icon"><use href="#i-lock"/></svg> Данные доступны только после входа</div>
+    <button class="text-button install-button" type="button" data-install hidden><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Установить приложение</button>
   </main>
   <div class="lock-foot">Личная аналитика · RUB</div>
 </div>
@@ -83,11 +87,20 @@
       <div class="glass entry-card"><div id="table-container" class="table-container"></div><form id="month-form" class="month-form" hidden><div class="month-heading"><label>Месяц<input type="month" id="entry-month" required></label><span class="muted">Пустое поле — нет записи.<br>0 — дохода не было.</span></div><div id="month-fields"></div><div class="form-footer"><span id="month-total"></span><button type="submit" class="button primary">Сохранить месяц <svg class="icon"><use href="#i-check"/></svg></button></div><p class="error" id="month-error" role="alert"></p></form></div>
       <div class="bottom-note"><span>Активные источники сверху, неактивные снизу. Нажмите сумму, чтобы изменить её.</span><button class="text-button" id="export-data"><svg class="icon"><use href="#i-download"/></svg> Скачать CSV</button></div>
     </section>
-    <footer class="app-footer"><span>ПОТОК <span class="accent-text">/</span> Личная аналитика</span><span>Всё начинается с ясности.</span></footer>
+    <footer class="app-footer"><span>ПОТОК <span class="accent-text">/</span> Личная аналитика</span><button class="text-button install-button" type="button" data-install hidden><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Установить приложение</button><span>Всё начинается с ясности.</span></footer>
   </main>
 </div>
 <dialog id="edit-dialog"><form id="edit-form"><div class="dialog-heading"><div><div class="card-kicker">НОВАЯ ЗАПИСЬ</div><h2 id="edit-title">Добавить доход</h2></div><button type="button" class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div><label>Месяц<input id="edit-month" type="month" required></label><label>Источник<select id="edit-source" required></select></label><label>Сумма, ₽<input id="edit-amount" type="text" inputmode="decimal" placeholder="0" autocomplete="off"></label><p class="muted help">Сумма заменяет запись этого источника за месяц. Пустое поле удаляет запись, 0 сохраняется как нулевой доход.</p><p class="error" id="edit-error" role="alert"></p><div class="form-footer"><button type="button" class="button subtle close-dialog">Отмена</button><button type="submit" class="button primary">Сохранить</button></div></form></dialog>
 <dialog id="source-dialog"><form id="source-form"><div class="dialog-heading"><div><div class="card-kicker">ИСТОЧНИК ДОХОДА</div><h2 id="source-title">Новый источник</h2></div><button type="button" class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div><input type="hidden" id="source-id"><label>Название<input id="source-name" type="text" required maxlength="80" placeholder="Например, фриланс"></label><fieldset><legend>Цвет на графиках</legend><div id="source-colors" class="color-options"></div></fieldset><label class="check-label"><input id="source-active" type="checkbox" checked> Активный источник</label><p class="muted help">Активные источники стоят сверху. Неактивные остаются в таблице и участвуют в статистике.</p><p id="source-error" class="error" role="alert"></p><div class="form-footer"><button type="button" class="button subtle close-dialog">Отмена</button><button type="submit" class="button primary">Сохранить</button></div></form></dialog>
 <dialog id="theme-dialog"><div class="dialog-heading"><div><span class="card-kicker">ВАШЕ НАСТРОЕНИЕ</span><h2>Оформление</h2></div><button class="icon-button close-dialog" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="theme-options"><button data-theme="violet"><span class="theme-swatch violet"></span><b>Аметист</b><small>Тёмный · фиолетовый</small></button><button data-theme="midnight"><span class="theme-swatch midnight"></span><b>Полночь</b><small>Тёмный · голубой</small></button><button data-theme="forest"><span class="theme-swatch forest"></span><b>Лес</b><small>Тёмный · мятный</small></button><button data-theme="light"><span class="theme-swatch light"></span><b>Жемчуг</b><small>Светлый · лиловый</small></button></div></dialog>
+<dialog id="install-dialog" aria-labelledby="install-title">
+  <div class="dialog-heading"><h2 id="install-title">Установить «Поток»</h2><button class="icon-button" type="button" data-install-close aria-label="Закрыть"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+  <div class="install-instructions">
+    <section><h3>iPhone и iPad</h3><p>Откройте сайт в Safari. Нажмите «Поделиться» → «На экран Домой» → «Добавить». Если есть переключатель «Открывать как веб-приложение», включите его.</p></section>
+    <section><h3>Android</h3><p>Откройте сайт в Chrome. В меню ⋮ выберите «Добавить на главный экран» или «Установить приложение» и подтвердите установку.</p></section>
+    <section><h3>Компьютер</h3><p>В Chrome или Edge нажмите значок установки в адресной строке либо найдите установку приложения в меню браузера.</p></section>
+    <p class="muted">«Поток» будет открываться с отдельной иконки. Для работы нужен интернет.</p>
+  </div>
+</dialog>
 <div id="toast" class="toast" role="status" hidden></div>
 </body></html>
