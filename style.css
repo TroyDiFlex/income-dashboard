@@ -69,6 +69,7 @@ input:focus-visible+.source-checkbox{outline:2px solid var(--accent);outline-off
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .app-footer{flex-wrap:wrap;gap:12px;align-items:center}
 .app-footer>.install-button{position:relative;margin-left:auto;padding:0;min-height:0;color:inherit;font:inherit;letter-spacing:inherit;border-radius:2px}
+.app-footer>.install-button .icon{width:11px;height:11px}
 .app-footer>.install-button::before{content:"";position:absolute;left:0;right:0;top:50%;height:44px;transform:translateY(-50%)}
 .app-footer>.install-button:hover{color:var(--muted)}
 .install-instructions{display:grid;gap:20px;font-size:14px;line-height:1.65}
