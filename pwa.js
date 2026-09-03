@@ -18,8 +18,12 @@
   }
 
   function updateThemeColor() {
-    document.querySelector('meta[name="theme-color"]').content =
-      getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    const styles = getComputedStyle(document.documentElement);
+    window.PotokBranding?.apply({
+      theme: document.documentElement.dataset.theme,
+      accent: styles.getPropertyValue('--accent').trim(),
+      background: styles.getPropertyValue('--bg').trim()
+    });
   }
 
   window.addEventListener('beforeinstallprompt', event => {
@@ -34,6 +38,7 @@
   });
   displayMode.addEventListener('change', updateDisplay);
   window.addEventListener('pageshow', updateDisplay);
+  window.addEventListener('potok-theme-change', updateThemeColor);
 
   buttons.forEach(button => button.addEventListener('click', async () => {
     if (prompting) return;

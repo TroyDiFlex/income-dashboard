@@ -6,11 +6,30 @@ const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ico=name=>`<svg class="icon"><use href="#i-${name}"/></svg>`;
 const api=new Api();
+const THEME_KEY='potok-theme',THEME_SETTINGS_KEY='potok-theme-customization';
+const THEMES=['violet','midnight','forest','light','obsidian','quartz'];
+const THEME_ACCENTS=['#fb7185','#f97316','#facc15','#4ade80','#2dd4bf','#38bdf8','#60a5fa','#818cf8','#a78bfa','#e879f9','#f472b6','#f5f5f4'];
+const CUSTOM_THEME_DEFAULTS={obsidian:{accent:'#fb7185',glow:6},quartz:{accent:'#fb7185',glow:6}};
+function readThemeSettings(){
+ let saved={};try{saved=JSON.parse(localStorage.getItem(THEME_SETTINGS_KEY))||{};}catch{}
+ return Object.fromEntries(Object.entries(CUSTOM_THEME_DEFAULTS).map(([name,fallback])=>{const value=saved[name]||{};return [name,{accent:THEME_ACCENTS.includes(value.accent)?value.accent:fallback.accent,glow:Number.isInteger(value.glow)&&value.glow>=0&&value.glow<=10?value.glow:fallback.glow}];}));
+}
+let customThemeSettings=readThemeSettings();
 let comparisonMode='total';
 try{const saved=localStorage.getItem('potok-comparison-mode');if(['total','average'].includes(saved))comparisonMode=saved;}catch{}
 let data=null,view='overview',period='all',chartType='line',sourceFilter=['all'],selectedYear=currentMonth().slice(0,4),selectedMonth=currentMonth(),customFrom='',customTo='',tableYear=currentMonth().slice(0,4),entryMode=matchMedia('(max-width:650px)').matches?'month':'table',sourceColor=COLORS[0],busy=false,chartSelection=-1,toastTimer,authAttempt=0,restoring=false;
-function theme(value){if(!['violet','midnight','forest','light'].includes(value))value='violet';document.documentElement.dataset.theme=value;try{localStorage.setItem('potok-theme',value);}catch{}document.querySelectorAll('.theme-options button').forEach(b=>b.classList.toggle('selected',b.dataset.theme===value));}
-try{theme(localStorage.getItem('potok-theme')||'violet');}catch{theme('violet');}
+function themeRgb(hex){return [1,3,5].map(index=>parseInt(hex.slice(index,index+2),16)).join(' ');}
+function renderThemeControls(){
+ document.querySelectorAll('[data-custom-theme]').forEach(card=>{const name=card.dataset.customTheme,settings=customThemeSettings[name],rgb=themeRgb(settings.accent);card.style.setProperty('--preview-accent',settings.accent);card.style.setProperty('--preview-glow',`rgb(${rgb} / ${settings.glow*.012})`);const customizer=card.querySelector('[data-customizer]'),palette=customizer.querySelector('.theme-accent-options');customizer.style.setProperty('--glow-progress',`${settings.glow*10}%`);if(!palette.children.length)palette.innerHTML=THEME_ACCENTS.map(color=>`<button type="button" class="theme-accent" data-accent="${color}" style="--choice:${color}" aria-label="Акцент ${color}" title="${color}"></button>`).join('');customizer.querySelector('[data-accent-value]').textContent=settings.accent.toUpperCase();customizer.querySelector('[data-glow]').value=settings.glow;customizer.querySelector('[data-glow-value]').value=settings.glow;palette.querySelectorAll('[data-accent]').forEach(button=>{const selected=button.dataset.accent===settings.accent;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});});
+}
+function applyThemeVariables(value){
+ const root=document.documentElement;['--accent','--accent-strong','--accent-soft','--glow'].forEach(name=>root.style.removeProperty(name));if(!CUSTOM_THEME_DEFAULTS[value])return;const settings=customThemeSettings[value],rgb=themeRgb(settings.accent);root.style.setProperty('--accent',settings.accent);root.style.setProperty('--accent-strong',settings.accent);root.style.setProperty('--accent-soft',`rgb(${rgb} / .12)`);root.style.setProperty('--glow',`rgb(${rgb} / ${settings.glow*.012})`);
+}
+function theme(value,{save=true}={}){if(!THEMES.includes(value))value='obsidian';document.documentElement.dataset.theme=value;applyThemeVariables(value);if(save)try{localStorage.setItem(THEME_KEY,value);}catch{}document.querySelectorAll('.theme-select').forEach(button=>button.closest('.theme-card').classList.toggle('selected',button.dataset.theme===value));renderThemeControls();const styles=getComputedStyle(document.documentElement);window.dispatchEvent(new CustomEvent('potok-theme-change',{detail:{theme:value,accent:styles.getPropertyValue('--accent').trim(),background:styles.getPropertyValue('--bg').trim()}}));}
+function saveThemeSettings(){try{localStorage.setItem(THEME_SETTINGS_KEY,JSON.stringify(customThemeSettings));}catch{}}
+function updateThemeSetting(name,change){customThemeSettings[name]={...customThemeSettings[name],...change};saveThemeSettings();renderThemeControls();if(document.documentElement.dataset.theme===name)theme(name);}
+function closeThemeCustomizers(except=''){document.querySelectorAll('[data-customizer]').forEach(panel=>{const keep=panel.dataset.customizer===except;panel.hidden=!keep;document.querySelector(`[data-theme-settings="${panel.dataset.customizer}"]`)?.setAttribute('aria-expanded',String(keep));});}
+try{theme(localStorage.getItem(THEME_KEY)||'obsidian');}catch{theme('obsidian');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,4000);}
 function banner(message,error=false){$('connection-banner').textContent=message;$('connection-banner').hidden=!message;$('connection-banner').classList.toggle('error',error);}
 function errorMessage(error){if(error.code==='SESSION'){lock();return 'Сессия закончилась. Войдите снова.';}if(error.code==='CONFLICT')return 'Данные изменены на другом устройстве или в таблице. Закройте форму, нажмите «Обновить» и повторите изменение. Введённые значения пока сохранены в форме.';return error.message||'Не удалось сохранить. Попробуйте ещё раз.';}
@@ -31,8 +50,12 @@ window.addEventListener('online',restoreSession);
 window.addEventListener('storage',e=>{if((e.key===SESSION_KEY||e.key===null)&&e.newValue===null)lock();});
 $('show-password').addEventListener('click',()=>{const visible=$('password').type==='password';$('password').type=visible?'text':'password';$('show-password').textContent=visible?'Скрыть':'Показать';});
 $('logout').addEventListener('click',lock);
-$('theme-open').addEventListener('click',()=>$('theme-dialog').showModal());
-document.querySelectorAll('.theme-options button').forEach(b=>b.addEventListener('click',()=>theme(b.dataset.theme)));
+$('theme-open').addEventListener('click',()=>{$('theme-dialog').showModal();closeThemeCustomizers();});
+document.querySelectorAll('.theme-select').forEach(button=>button.addEventListener('click',()=>{theme(button.dataset.theme);closeThemeCustomizers();}));
+document.querySelectorAll('[data-theme-settings]').forEach(button=>button.addEventListener('click',event=>{event.stopPropagation();const name=button.dataset.themeSettings;closeThemeCustomizers(button.getAttribute('aria-expanded')==='true'?'':name);}));
+document.querySelectorAll('[data-customizer]').forEach(panel=>{panel.addEventListener('click',event=>event.stopPropagation());panel.querySelector('.theme-accent-options').addEventListener('click',event=>{const button=event.target.closest('[data-accent]');if(button)updateThemeSetting(panel.dataset.customizer,{accent:button.dataset.accent});});panel.querySelector('[data-glow]').addEventListener('input',event=>updateThemeSetting(panel.dataset.customizer,{glow:Number(event.target.value)}));panel.querySelector('.theme-reset').addEventListener('click',()=>updateThemeSetting(panel.dataset.customizer,{...CUSTOM_THEME_DEFAULTS[panel.dataset.customizer]}));});
+$('theme-dialog').addEventListener('click',event=>{if(!event.target.closest('.custom-theme-card'))closeThemeCustomizers();});
+$('theme-dialog').addEventListener('close',()=>closeThemeCustomizers());
 document.querySelectorAll('.close-dialog').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){if(d.id==='source-confirm-dialog'&&busy)return;const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}}));
 function navigate(){if(!data)return;view=location.hash==='#entries'?'entries':'overview';$('overview-view').hidden=view!=='overview';$('entries-view').hidden=view!=='entries';$('page-title').innerHTML=view==='overview'?'Обзор доходов<span class="title-dot">.</span>':'Ваши данные<span class="title-dot">.</span>';$('page-eyebrow').textContent=view==='overview'?'ВАШ ФИНАНСОВЫЙ ПУЛЬС':'КАЖДОЕ ПОСТУПЛЕНИЕ НА СВОЁМ МЕСТЕ';$('page-description').textContent=view==='overview'?'От отдельных поступлений — к полной картине.':'Добавляйте доходы и управляйте источниками.';document.querySelectorAll('[data-route]').forEach(a=>{a.classList.toggle('active',a.dataset.route===view);a.setAttribute('aria-current',a.dataset.route===view?'page':'false');});if(view==='overview')renderChart();else renderEntries();}

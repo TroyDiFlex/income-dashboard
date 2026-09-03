@@ -55,16 +55,16 @@ test('PWA keeps its identity and separates normal icons from system-maskable ico
 
 test('desktop PNGs have transparent rounded corners and retain the SVG colors and glyph', async () => {
   for (const icon of manifest.icons.filter(icon => icon.purpose === 'any')) {
-    assert.match(icon.src, /\?v=2$/);
+    assert.match(icon.src, /\?v=3$/);
     const {width, height, pixel} = await pngPixels(icon.src);
     assert.equal(`${width}x${height}`, icon.sizes);
     for (const [x, y] of [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]])
       assert.equal(pixel(x, y)[3], 0, `${icon.src}: transparent corner`);
     assert.equal(pixel(Math.floor(width * .05), Math.floor(height * .05))[3], 0);
     for (const [x, y] of [[width / 2, 0], [0, height / 2], [width / 2, height - 1]])
-      assert.deepEqual(pixel(x, y), [179, 154, 255, 255]);
-    assert.deepEqual(pixel(Math.floor(width * .35), Math.floor(height * .65)), [12, 11, 19, 255]);
-    assert.deepEqual(pixel(width / 2, Math.floor(height * .65)), [179, 154, 255, 255]);
+      assert.deepEqual(pixel(x, y), [251, 113, 133, 255]);
+    assert.deepEqual(pixel(Math.floor(width * .35), Math.floor(height * .65)), [8, 8, 8, 255]);
+    assert.deepEqual(pixel(width / 2, Math.floor(height * .65)), [251, 113, 133, 255]);
   }
 });
 
@@ -75,6 +75,6 @@ test('mobile maskable and Apple icons retain opaque corners for platform-owned r
     assert.equal(width, src === maskable.src ? 512 : 180);
     assert.equal(width, height);
     for (const [x, y] of [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]])
-      assert.deepEqual(pixel(x, y), [179, 154, 255, 255]);
+      assert.deepEqual(pixel(x, y), [251, 113, 133, 255]);
   }
 });

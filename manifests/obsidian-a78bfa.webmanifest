@@ -1,0 +1,32 @@
+{
+  "id": "../",
+  "name": "Поток",
+  "short_name": "Поток",
+  "description": "Личная аналитика доходов",
+  "lang": "ru",
+  "start_url": "../",
+  "scope": "../",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "icons": [
+    {
+      "src": "../icons/themes/obsidian-a78bfa-192.png?v=1",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "../icons/themes/obsidian-a78bfa-512.png?v=1",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "../icons/themes/obsidian-a78bfa-maskable.png?v=1",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
