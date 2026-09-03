@@ -46,12 +46,14 @@ test('all palette colors round-trip through the existing server without a backen
  assert.equal(h.request({action:'read',token:login.token}).result.sources[0].color,COLORS.at(-1));
 });
 
-test('favicon is cache-versioned and uses a filled pixel-aligned mark in the interface colors',async()=>{
- assert.match(html,/<link rel="icon" href="icon\.svg\?v=2" type="image\/svg\+xml" sizes="any">/);
+test('favicon is cache-versioned and matches the narrower interface mark proportions',async()=>{
+ assert.match(html,/<link rel="icon" href="icon\.svg\?v=3" type="image\/svg\+xml" sizes="any">/);
  const icon=await readFile(new URL('../icon.svg',import.meta.url),'utf8');
  assert.match(icon,/viewBox="0 0 16 16"/);
  assert.match(icon,/fill="#b39aff"/);
  assert.match(icon,/fill="#0c0b13"/);
+ // Match the displayed brand's narrow glyph, thicker stems and lower placement.
+ assert.match(icon,/d="M4\.8 12\.4V5\.8h6\.9v6\.6H9\.4V7\.7H7\.1v4\.7Z"/);
  assert.doesNotMatch(icon,/\bstroke[=-]/);
  assert.equal((icon.match(/<path\b/g)||[]).length,1);
 });
