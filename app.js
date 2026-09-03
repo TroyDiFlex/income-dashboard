@@ -103,7 +103,36 @@ function renderOverview(chartOptions){
  $('metrics').innerHTML=metrics.map((m,i)=>`<article class="metric"${m[4]?` title="${esc(m[4])}"`:''}><div class="metric-label">${esc(m[0])}${ico(m[3])}</div><div class="metric-value ${i===5?'name':''}">${esc(m[1])}</div><div class="metric-foot">${esc(m[2])}</div></article>`).join('');
  renderBreakdowns(s);renderChart(chartOptions);
 }
-function renderBreakdowns(s){$('share-count').textContent=`${s.sources.length} ист.`;let offset=0;const positive=s.sources.filter(x=>x.total>0);const circumference=2*Math.PI*63;const rings=positive.map(x=>{const fraction=x.total/s.total,dash=Math.max(0,circumference*fraction-3);const svg=`<circle cx="80" cy="80" r="63" stroke="${x.color}" stroke-dasharray="${dash} ${circumference-dash}" stroke-dashoffset="${-offset}"/>`;offset+=circumference*fraction;return svg;}).join('');$('donut').innerHTML=`<svg viewBox="0 0 160 160" role="img" aria-label="Доли источников дохода"><circle cx="80" cy="80" r="63" stroke="var(--grid)"/>${rings}</svg><div class="donut-center"><strong>${s.total?'100%':'—'}</strong><span>${s.total?'общий доход':'нет дохода'}</span></div>`;$('share-legend').innerHTML=s.sources.length?s.sources.map(x=>`<div class="share-item"><i class="source-dot" style="background:${x.color}"></i><span class="label" title="${esc(x.name)}">${esc(x.name)}</span><strong>${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</strong></div>`).join(''):'<p class="muted help">В этом периоде пока нет записей.</p>';renderComparison(s);}
+function renderBreakdowns(s){
+ const average=comparisonMode==='average',total=s.sources.reduce((sum,x)=>sum+x[comparisonMode],0);
+ const caption=average?'в среднем за месяц':'общий доход',donut=$('donut');
+ $('share-count').textContent=`${s.sources.length} ист.`;
+ if(!donut.querySelector('svg'))donut.innerHTML='<svg viewBox="0 0 160 160" role="img"><circle cx="80" cy="80" r="63" stroke="var(--grid)"/></svg><div class="donut-center"><strong></strong><span></span></div>';
+ const svg=donut.querySelector('svg');
+ svg.setAttribute('aria-label',`Доли источников дохода — ${caption}`);
+ donut.querySelector('strong').textContent=total?'100%':'—';
+ donut.querySelector('span').textContent=total?(average?'средний доход':caption):'нет дохода';
+ // Keep each source's circle so CSS can transition from its current visible size, even on rapid toggles.
+ const circles=new Map([...svg.querySelectorAll('[data-source]')].map(circle=>[circle.dataset.source,circle]));
+ const circumference=2*Math.PI*63;let offset=0;
+ for(const source of s.sources){
+  let circle=circles.get(source.id);
+  if(!circle){
+   circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+   circle.dataset.source=source.id;circle.setAttribute('class','donut-segment');
+   for(const [name,value] of Object.entries({cx:80,cy:80,r:63}))circle.setAttribute(name,value);
+   svg.append(circle);
+  }
+  const fraction=total?source[comparisonMode]/total:0,dash=Math.max(0,circumference*fraction-3);
+  circle.setAttribute('stroke',source.color);
+  circle.style.strokeDasharray=`${dash} ${circumference-dash}`;
+  circle.style.strokeDashoffset=String(-offset);
+  offset+=circumference*fraction;circles.delete(source.id);
+ }
+ circles.forEach(circle=>circle.remove());
+ $('share-legend').innerHTML=s.sources.length?s.sources.map(x=>`<div class="share-item"><i class="source-dot" style="background:${x.color}"></i><span class="label" title="${esc(x.name)}">${esc(x.name)}</span><strong>${total?(100*x[comparisonMode]/total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</strong></div>`).join(''):'<p class="muted help">В этом периоде пока нет записей.</p>';
+ renderComparison(s);
+}
 function renderComparison(s){
  const average=comparisonMode==='average';
  const sources=[...s.sources].sort((a,b)=>b[comparisonMode]-a[comparisonMode]||b.total-a.total);
@@ -119,7 +148,7 @@ $('comparison-mode').addEventListener('click',e=>{
  const button=e.target.closest('[data-comparison]');if(!button||!data)return;
  const mode=button.dataset.comparison;if(!['total','average'].includes(mode)||mode===comparisonMode)return;
  comparisonMode=mode;try{localStorage.setItem('potok-comparison-mode',mode);}catch{}
- renderComparison(summarize(data,...periodBounds(),sourceFilter));
+ renderBreakdowns(summarize(data,...periodBounds(),sourceFilter));
 });
 
 let chartModel=null;
