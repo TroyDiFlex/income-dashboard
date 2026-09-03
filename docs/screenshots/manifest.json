@@ -5,7 +5,7 @@
   "snapshots": [
     {
       "file": "overview-violet.png",
-      "description": "Обзор: общая сумма и три источника · Аметист",
+      "description": "Обзор за всё время · Аметист",
       "theme": "violet",
       "route": "#overview",
       "viewport": {
@@ -31,7 +31,7 @@
     },
     {
       "file": "overview-midnight.png",
-      "description": "Столбцы за выбранный период · Полночь",
+      "description": "Столбцы по четырём выбранным источникам · Полночь",
       "theme": "midnight",
       "route": "#overview",
       "viewport": {

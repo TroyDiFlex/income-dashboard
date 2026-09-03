@@ -13,7 +13,7 @@ catch { ({chromium} = await import('../.local/node_modules/playwright/index.mjs'
 
 const root = new URL('../',import.meta.url);
 const output = new URL('../docs/screenshots/',import.meta.url);
-const files = new Set(['index.html','style.css','app.js','api.js','config.js','model.js','chart.js','pwa.js','icon.svg','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png']);
+const files = new Set(['index.html','style.css','app.js','api.js','config.js','model.js','chart.js','pwa.js','icon.svg','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/icon-maskable-512.png','icons/apple-touch-icon.png']);
 const types = {html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',svg:'image/svg+xml',png:'image/png',webmanifest:'application/manifest+json'};
 const server = http.createServer(async (req,res) => {
   try {
@@ -111,19 +111,9 @@ try {
 
   {
     const {page,context} = await start('violet');
-    await page.locator('#source-filter-trigger').click();
-    for (const id of ['salary','freelance','consulting']) {
-      await page.locator(`.source-filter-option:has([data-filter-source][value="${id}"])`).click();
-    }
-    await page.locator('#source-filter-trigger').click();
-    await settle(page);
-    assert.equal(await page.locator('#chart .data-line').count(),4);
-    assert.equal(await page.locator('#source-filter-label').textContent(),'Все источники + 3');
-    const coverTotal = summarize(demoData()).total / 100;
-    assert.equal(Number((await page.locator('#hero-total').textContent()).replace(/\D/g,'')),coverTotal);
     const overviewHeight = await page.locator('.breakdowns').evaluate(element => Math.floor(element.getBoundingClientRect().top) - 1);
     await page.setViewportSize({width:1600,height:overviewHeight});
-    await capture(page,'overview-violet','Обзор: общая сумма и три источника · Аметист');
+    await capture(page,'overview-violet','Обзор за всё время · Аметист');
     await entries(page,'month');
     await page.setViewportSize({width:1600,height:1140});
     await capture(page,'month-violet','Ввод за август 2026 · Аметист');
@@ -133,10 +123,23 @@ try {
     const {page,context} = await start('midnight');
     await page.locator('[data-period="custom"]').click();
     await page.locator('#filter-from').fill('2025-09');
+    const selectedSources = ['salary','freelance','consulting','products'];
+    await page.locator('#source-filter-trigger').click();
+    await page.locator('.source-filter-option:has([data-filter-source][value="all"])').click();
+    for (const id of selectedSources) {
+      await page.locator(`.source-filter-option:has([data-filter-source][value="${id}"])`).click();
+    }
+    await page.locator('#source-filter-trigger').click();
     await page.locator('[data-chart="bars"]').click();
+    await settle(page);
+    assert.equal(await page.locator('#source-filter-label').textContent(),'Выбрано источников: 4');
+    assert.equal(await page.locator('#chart .bar-stack').count(),12);
+    assert.equal(await page.locator('#chart .bar').count(),48);
+    const selectedTotal = summarize(demoData(),'2025-09','2026-08',selectedSources).total / 100;
+    assert.equal(Number((await page.locator('#hero-total').textContent()).replace(/\D/g,'')),selectedTotal);
     const overviewHeight = await page.locator('.breakdowns').evaluate(element => Math.floor(element.getBoundingClientRect().top) - 1);
     await page.setViewportSize({width:1600,height:overviewHeight});
-    await capture(page,'overview-midnight','Столбцы за выбранный период · Полночь');
+    await capture(page,'overview-midnight','Столбцы по четырём выбранным источникам · Полночь');
     await context.close();
   }
   {
