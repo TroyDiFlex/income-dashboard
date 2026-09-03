@@ -24,6 +24,11 @@ test('only the month overview option is hidden; monthly data entry is retained',
  assert.match(css,/\[hidden\]\{display:none!important\}/);
 });
 
+test('native select menus keep readable theme colors',async()=>{
+ const css=await readFile(new URL('../style.css',import.meta.url),'utf8');
+ assert.match(css,/select option\{color:var\(--text\);background:var\(--panel-solid\)\}/);
+});
+
 test('source palette preserves every existing color and offers 22 distinct valid colors',()=>{
  assert.deepEqual(COLORS.slice(0,13),['#a78bfa','#5ed9bc','#f5bd72','#ec88bf','#79b8ff','#d3d96c','#ff9292','#b5b0ce','#68c8d9','#8f9bea','#d99caa','#d99b7c','#94c987']);
  assert.deepEqual(COLORS.slice(13),['#ef5b62','#f29a45','#f1cd4f','#4fc773','#267f92','#3d78cf','#7b5aa6','#a94750','#4b8f61']);
