@@ -55,5 +55,13 @@ export function validateData(data) {
   for(const s of data.sources){if(typeof s.id!=='string'||ids.has(s.id)||typeof s.name!=='string'||!s.name.trim()||s.name.length>80||typeof s.active!=='boolean'||!/^#[0-9a-f]{6}$/i.test(s.color))throw new Error('Некорректный источник.');ids.add(s.id);}
   const keys=new Set();
   for(const e of data.entries){const key=e.sourceId+'|'+e.month;if(!ids.has(e.sourceId)||!validMonth(e.month)||!Number.isSafeInteger(e.amount)||e.amount<0||e.amount>999999999999||keys.has(key))throw new Error('Некорректная или повторная запись.');keys.add(key);}
+  if(data.trash!==undefined){
+    if(!Array.isArray(data.trash))throw new Error('Неверный формат корзины.');
+    for(const s of data.trash){
+      validateData({sources:[s],entries:[]});
+      if(ids.has(s.id)||!Number.isSafeInteger(s.deletedAt)||s.deletedAt<=0||s.expiresAt!==s.deletedAt+30*86400000||!Number.isSafeInteger(s.entryCount)||s.entryCount<0||!Number.isSafeInteger(s.total)||s.total<0)throw new Error('Некорректный источник в корзине.');
+      ids.add(s.id);
+    }
+  }
   return data;
 }
