@@ -36,7 +36,7 @@ input:focus-visible+.source-checkbox{outline:2px solid var(--accent);outline-off
 .chart-legend{display:flex;justify-content:flex-end;gap:8px 15px;flex:1;flex-wrap:wrap;min-width:0}
 .chart-legend-item{display:inline-flex;align-items:center;gap:6px;max-width:100%;overflow-wrap:anywhere}
 .chart-legend-item .legend-line{flex-shrink:0}
-.chart .tooltip{left:0;top:0;width:max-content;min-width:min(155px,100%);max-width:min(290px,100%);max-height:100%;overflow:auto;pointer-events:none;overscroll-behavior:contain;scrollbar-width:thin;transition:transform .22s cubic-bezier(.22,1,.36,1)}
+.chart .tooltip{left:0;top:0;width:max-content;min-width:min(155px,100%);max-width:min(290px,100%);max-height:100%;overflow:auto;pointer-events:none;overscroll-behavior:contain;scrollbar-width:thin;transition:transform .4s cubic-bezier(.22,.75,.25,1)}
 .tooltip-row span:first-child .source-dot{margin-right:6px}
 .tooltip-row span:last-child{white-space:nowrap}
 @media(max-width:650px){.source-filter{max-width:none}.source-filter-panel{width:100%}.chart-legend{justify-content:flex-start;flex-basis:100%}}
