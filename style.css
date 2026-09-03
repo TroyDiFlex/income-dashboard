@@ -1,4 +1,5 @@
 @charset "UTF-8";
+::selection{background:var(--accent);color:var(--bg);text-shadow:none}
 /* Multi-source picker and charts inherit all four dashboard themes. */
 .source-filter{position:relative;min-width:210px;max-width:320px}
 .source-filter-trigger{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:42px;padding:10px 13px;background:var(--panel);border:1px solid var(--line);text-align:left;font-size:13px;transition:border-color .2s,background .2s}
