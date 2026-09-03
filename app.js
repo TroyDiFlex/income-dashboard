@@ -136,6 +136,7 @@ function renderBreakdowns(s){
 function renderComparison(s){
  const average=comparisonMode==='average';
  const sources=[...s.sources].sort((a,b)=>b[comparisonMode]-a[comparisonMode]||b.total-a.total);
+ const total=sources.reduce((sum,x)=>sum+x[comparisonMode],0);
  const maximum=sources[0]?.[comparisonMode]||0;
  document.querySelectorAll('[data-comparison]').forEach(button=>{
   const selected=button.dataset.comparison===comparisonMode;
@@ -167,8 +168,8 @@ function renderComparison(s){
   row.querySelector('strong').textContent=money(x[comparisonMode]);
   fill.style.width=`${maximum?x[comparisonMode]/maximum*100:0}%`;fill.style.background=x.color;
   meta.firstElementChild.textContent=`${x.active?'Активный':'Неактивный'} · ${x.count} мес. с записями`;
-  meta.lastElementChild.hidden=average;
-  meta.lastElementChild.textContent=`${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%`;
+  meta.lastElementChild.hidden=false;
+  meta.lastElementChild.textContent=`${total?(100*x[comparisonMode]/total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%`;
   rows.delete(x.id);return row;
  });
  rows.forEach(row=>row.remove());
