@@ -16,7 +16,7 @@ export function incomeChart(data,from,to,selection=['all']) {
   return {summary,lines,bars};
 }
 
-export function chartGeometry(model,type,containerWidth,containerHeight) {
+export function chartGeometry(model,type,containerWidth,containerHeight,{animate=true}={}) {
   const {summary:s,lines,bars}=model,width=Math.max(280,containerWidth),height=containerHeight;
   const left=44,right=12,top=12,bottom=34,plotW=width-left-right,plotH=height-top-bottom;
   const values=type==='bars'?s.months.map(m=>m.total):lines.flatMap(line=>line.months.map(m=>m.total));
@@ -48,9 +48,11 @@ export function chartGeometry(model,type,containerWidth,containerHeight) {
       }).join('');
       const zeroColor=bars.find(series=>series.months[i].count)?.color||'var(--accent)';
       // A recorded zero remains visible; a missing month has no column.
-      fills+=`<g class="bar-stack" clip-path="url(#bar-clip-${i})">${m.total?pieces:`<rect class="bar" style="--series-color:${zeroColor}" x="${bx}" y="${by}" width="${w}" height="2"/>`}</g>`;
+      fills+=`<g class="bar-stack" style="transform-origin:0 ${y(0)}px;--bar-delay:${Math.round(i/Math.max(1,n-1)*180)}ms" clip-path="url(#bar-clip-${i})">${m.total?pieces:`<rect class="bar" style="--series-color:${zeroColor}" x="${bx}" y="${by}" width="${w}" height="2"/>`}</g>`;
     });
   }else{
+    // Reveal every series on the same timeline, including fills and isolated points.
+    defs+=`<clipPath id="chart-reveal-clip" clipPathUnits="userSpaceOnUse"><rect class="chart-reveal" width="${width}" height="${height}"/></clipPath>`;
     lines.forEach((series,j)=>{
       defs+=`<linearGradient id="chart-fill-${j}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${series.color}" stop-opacity=".23"/><stop offset="100%" stop-color="${series.color}" stop-opacity="0"/></linearGradient>`;
       const segments=[];let segment=[];
@@ -70,6 +72,7 @@ export function chartGeometry(model,type,containerWidth,containerHeight) {
   }
   const hoverSeries=type==='bars'?[{color:bars.length===1?bars[0].color:'var(--accent)',months:s.months}]:lines;
   const dots=hoverSeries.map((series,i)=>`<circle id="hover-dot-${i}" class="chart-point hover-dot" style="--series-color:${series.color}" r="5" opacity="0"/>`).join('');
-  const svg=`<svg viewBox="0 0 ${width} ${height}" aria-hidden="true"><defs>${defs}</defs>${axes}${fills}${strokes}<line id="crosshair" x1="0" x2="0" y1="${top}" y2="${y(0)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0"/>${dots}</svg>`;
+  const series=type==='bars'?fills:`<g clip-path="url(#chart-reveal-clip)">${fills}${strokes}</g>`;
+  const svg=`<svg${animate?' class="chart-enter"':''} viewBox="0 0 ${width} ${height}" aria-hidden="true"><defs>${defs}</defs>${axes}${series}<line id="crosshair" x1="0" x2="0" y1="${top}" y2="${y(0)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0"/>${dots}</svg>`;
   return {svg,x,y,width,left,step,hoverSeries};
 }

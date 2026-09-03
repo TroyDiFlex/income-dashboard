@@ -27,6 +27,10 @@ input:focus-visible+.source-checkbox{outline:2px solid var(--accent);outline-off
 .chart svg .data-line{stroke:var(--series-color,var(--accent));filter:drop-shadow(0 2px 5px color-mix(in srgb,var(--series-color,var(--accent)) 26%,transparent))}
 .chart svg .bar{fill:var(--series-color,var(--accent));opacity:.9}
 .chart svg .bar-stack:hover .bar{opacity:1}
+.chart-enter .chart-reveal{transform-box:view-box;transform-origin:0 0;animation:chart-draw 900ms cubic-bezier(.4,0,.2,1) backwards}
+.chart-enter .bar-stack{transform-box:view-box;animation:chart-grow 650ms cubic-bezier(.22,1,.36,1) var(--bar-delay,0ms) backwards}
+@keyframes chart-draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes chart-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
 .chart .chart-point{fill:var(--series-color,var(--accent))}
 .chart-bottom{gap:12px;flex-wrap:wrap}
 .chart-legend{display:flex;justify-content:flex-end;gap:8px 15px;flex:1;flex-wrap:wrap;min-width:0}
