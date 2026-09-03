@@ -6,7 +6,7 @@ const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ico=name=>`<svg class="icon"><use href="#i-${name}"/></svg>`;
 const api=new Api();
-let data=null,view='overview',period='all',chartType='smooth',sourceFilter=['all'],selectedYear=currentMonth().slice(0,4),selectedMonth=currentMonth(),customFrom='',customTo='',tableYear=currentMonth().slice(0,4),entryMode=matchMedia('(max-width:650px)').matches?'month':'table',sourceColor=COLORS[0],busy=false,chartSelection=-1,toastTimer,authAttempt=0,restoring=false;
+let data=null,view='overview',period='all',chartType='line',sourceFilter=['all'],selectedYear=currentMonth().slice(0,4),selectedMonth=currentMonth(),customFrom='',customTo='',tableYear=currentMonth().slice(0,4),entryMode=matchMedia('(max-width:650px)').matches?'month':'table',sourceColor=COLORS[0],busy=false,chartSelection=-1,toastTimer,authAttempt=0,restoring=false;
 function theme(value){if(!['violet','midnight','forest','light'].includes(value))value='violet';document.documentElement.dataset.theme=value;try{localStorage.setItem('potok-theme',value);}catch{}document.querySelectorAll('.theme-options button').forEach(b=>b.classList.toggle('selected',b.dataset.theme===value));}
 try{theme(localStorage.getItem('potok-theme')||'violet');}catch{theme('violet');}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,4000);}

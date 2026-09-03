@@ -6,6 +6,15 @@ import {harness} from './server-harness.mjs';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 
+test('chart controls start with the selected linear chart, then bars and smooth',async()=>{
+ const buttons=[...html.matchAll(/<button\b([^>]*\bdata-chart="([^"]+)"[^>]*)>/g)];
+ assert.deepEqual(buttons.map(([, ,type])=>type),['line','bars','smooth']);
+ assert.deepEqual(buttons.filter(([,attributes])=>/class="selected"/.test(attributes)).map(([, ,type])=>type),['line']);
+ for(const [,attributes,type] of buttons)assert.ok(attributes.includes(`aria-pressed="${type==='line'}"`));
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
+ assert.match(app,/\bchartType='line'/);
+});
+
 test('only the month overview option is hidden; monthly data entry is retained',async()=>{
  const periods=[...html.matchAll(/<button\b([^>]*\bdata-period="([^"]+)"[^>]*)>/g)];
  assert.deepEqual(periods.filter(([,attributes])=>! /\bhidden\b/.test(attributes)).map(([, ,period])=>period),['all','year','custom']);
