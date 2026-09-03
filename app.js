@@ -142,7 +142,48 @@ function renderComparison(s){
   button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));
  });
  $('comparison-kicker').textContent=average?'ДОХОД ЗА МЕСЯЦ С ЗАПИСЬЮ':'ВКЛАД В ОБЩИЙ ДОХОД';
- $('comparison').innerHTML=sources.length?sources.map(x=>`<div class="comparison-item"><div class="comparison-heading"><i class="source-dot" style="background:${x.color}"></i><span title="${esc(x.name)}">${esc(x.name)}</span><strong>${esc(money(x[comparisonMode]))}</strong></div><div class="bar-track"><div class="bar-fill" style="width:${maximum?x[comparisonMode]/maximum*100:0}%;background:${x.color}"></div></div><div class="comparison-meta"><span>${x.active?'Активный':'Неактивный'} · ${x.count} мес. с записями</span>${average?'':`<span>${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</span>`}</div></div>`).join(''):'<div class="empty-state"><h3>Пока нечего сравнивать</h3>Выберите другой период или добавьте доход.</div>';
+ const container=$('comparison'),reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const rows=new Map([...container.querySelectorAll('.comparison-item')].map(row=>[row.dataset.source,row]));
+ // Capture visible positions before cancelling a move, so rapid toggles continue from the current frame.
+ const positions=new Map([...rows].map(([id,row])=>{
+  const fill=row.querySelector('.bar-fill'),trackWidth=fill.parentElement.getBoundingClientRect().width;
+  return [id,{top:row.getBoundingClientRect().top,width:trackWidth?fill.getBoundingClientRect().width/trackWidth*100:0}];
+ }));
+ rows.forEach(row=>row.getAnimations({subtree:true}).forEach(animation=>animation.cancel()));
+ if(!sources.length){
+  container.innerHTML='<div class="empty-state"><h3>Пока нечего сравнивать</h3>Выберите другой период или добавьте доход.</div>';
+  return;
+ }
+ container.querySelector('.empty-state')?.remove();
+ const orderedRows=sources.map(x=>{
+  let row=rows.get(x.id);
+  if(!row){
+   row=document.createElement('div');row.className='comparison-item';row.dataset.source=x.id;
+   row.innerHTML='<div class="comparison-heading"><i class="source-dot"></i><span></span><strong></strong></div><div class="bar-track"><div class="bar-fill"></div></div><div class="comparison-meta"><span></span><span></span></div>';
+  }
+  const name=row.querySelector('.comparison-heading span'),fill=row.querySelector('.bar-fill'),meta=row.querySelector('.comparison-meta');
+  name.textContent=x.name;name.title=x.name;
+  row.querySelector('.source-dot').style.background=x.color;
+  row.querySelector('strong').textContent=money(x[comparisonMode]);
+  fill.style.width=`${maximum?x[comparisonMode]/maximum*100:0}%`;fill.style.background=x.color;
+  meta.firstElementChild.textContent=`${x.active?'Активный':'Неактивный'} · ${x.count} мес. с записями`;
+  meta.lastElementChild.hidden=average;
+  meta.lastElementChild.textContent=`${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%`;
+  rows.delete(x.id);return row;
+ });
+ rows.forEach(row=>row.remove());
+ // Reorder the same nodes, then animate both position and width from the captured frame.
+ orderedRows.forEach((row,index)=>{if(container.children[index]!==row)container.insertBefore(row,container.children[index]||null);});
+ if(!reduceMotion){
+  const motion={duration:550,easing:'cubic-bezier(.22,1,.36,1)'};
+  const moves=orderedRows.map(row=>({row,previous:positions.get(row.dataset.source),top:row.getBoundingClientRect().top}));
+  moves.forEach(({row,previous,top})=>{
+   if(!previous)return;
+   const offset=previous.top-top,fill=row.querySelector('.bar-fill');
+   if(Math.abs(offset)>.5)row.animate([{transform:`translateY(${offset}px)`},{transform:'translateY(0)'}],motion);
+   if(Math.abs(previous.width-parseFloat(fill.style.width))>.01)fill.animate([{width:`${previous.width}%`},{width:fill.style.width}],motion);
+  });
+ }
 }
 $('comparison-mode').addEventListener('click',e=>{
  const button=e.target.closest('[data-comparison]');if(!button||!data)return;
