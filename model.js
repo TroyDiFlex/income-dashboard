@@ -21,7 +21,8 @@ export const money = (cents, compact=false) => new Intl.NumberFormat('ru-RU', {s
 export const number = value => new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(value);
 export const sortSources = sources => [...sources].sort((a,b)=>Number(b.active)-Number(a.active) || a.order-b.order || a.name.localeCompare(b.name,'ru'));
 export function summarize(data, from, to, selected = 'all') {
-  const relevant = data.entries.filter(e=>(!from||e.month>=from)&&(!to||e.month<=to)&&(selected==='all'||e.sourceId===selected));
+  const selection=new Set(Array.isArray(selected)?selected:[selected]);
+  const relevant = data.entries.filter(e=>(!from||e.month>=from)&&(!to||e.month<=to)&&(selection.has('all')||selection.has(e.sourceId)));
   const allMonths=[...new Set(data.entries.map(e=>e.month))].sort();
   const start=from||allMonths[0], end=to||allMonths.at(-1);
   const months=monthRange(start,end).map(month=>({month,total:0,count:0}));
