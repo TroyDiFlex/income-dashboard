@@ -1,6 +1,6 @@
 import {CONFIG} from './config.js';
 import {Api,SESSION_KEY} from './api.js';
-import {incomeChart,chartGeometry} from './chart.js';
+import {incomeChart,chartGeometry,lineRevealStarts} from './chart.js';
 import {MONTH_NAMES,COLORS,currentMonth,monthLabel,monthRange,parseAmount,money,number,sortSources,summarize,validateData,validMonth} from './model.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -79,15 +79,15 @@ document.addEventListener('pointerdown',e=>{if(!$('source-filter').contains(e.ta
 $('source-filter-options').addEventListener('change',e=>{
  const input=e.target.closest('[data-filter-source]');if(!input||!data)return;
  sourceFilter=input.checked?[...new Set([...sourceFilter,input.value])]:sourceFilter.filter(id=>id!==input.value);
- saveSourceFilter();updateSourceFilter();renderOverview();
+ saveSourceFilter();updateSourceFilter();renderOverview({newSourcesOnly:true});
 });
-$('source-toggle-all').addEventListener('change',()=>{if(!data)return;sourceFilter=$('source-toggle-all').checked?['all',...sortSources(data.sources).map(s=>s.id)]:[];saveSourceFilter();updateSourceFilter();renderOverview();});
+$('source-toggle-all').addEventListener('change',()=>{if(!data)return;sourceFilter=$('source-toggle-all').checked?['all',...sortSources(data.sources).map(s=>s.id)]:[];saveSourceFilter();updateSourceFilter();renderOverview({newSourcesOnly:true});});
 document.querySelectorAll('[data-chart]').forEach(b=>b.addEventListener('click',()=>{chartType=b.dataset.chart;document.querySelectorAll('[data-chart]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});renderChart();}));
 function render(){if(!data)return;const previous=sourceFilter.length;sourceFilter=sourceFilter.filter(id=>id==='all'||data.sources.some(s=>s.id===id));if(previous&&!sourceFilter.length)sourceFilter=['all'];renderSourceFilter();renderPeriod();renderOverview();if(view==='entries')renderEntries();$('updated-at').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
-function renderOverview(){if(!data)return;const [from,to]=periodBounds(),s=summarize(data,from,to,sourceFilter);$('hero-total').innerHTML=sourceFilter.length?esc(money(s.total)).replace(/₽/,'<span class="currency">₽</span>'):'—';$('hero-caption').textContent=`${s.observed.length} мес. с записями · ${sourceSelectionLabel()}`;const metrics=[['Общий доход',money(s.total),`${s.recordCount} записей за период`,'wallet'],['В среднем за месяц',money(s.average),'Только месяцы с записями','chart'],['Лучший месяц',s.best?monthLabel(s.best.month,true):'—',s.best?money(s.best.total):'Нет записей','arrow'],['Активные источники',String(s.activeSources),'Текущий статус источников','check'],['Всего источников',String(s.totalSources),`${s.sources.length} с записями в периоде`,'grid'],['Самый прибыльный',s.sources[0]?.name||'—',s.sources[0]?money(s.sources[0].total):'Нет записей','arrow']];$('metrics').innerHTML=metrics.map((m,i)=>`<article class="metric"><div class="metric-label">${esc(m[0])}${ico(m[3])}</div><div class="metric-value ${i===5?'name':''}">${esc(m[1])}</div><div class="metric-foot">${esc(m[2])}</div></article>`).join('');renderBreakdowns(s);renderChart();}
+function renderOverview(chartOptions){if(!data)return;const [from,to]=periodBounds(),s=summarize(data,from,to,sourceFilter);$('hero-total').innerHTML=sourceFilter.length?esc(money(s.total)).replace(/₽/,'<span class="currency">₽</span>'):'—';$('hero-caption').textContent=`${s.observed.length} мес. с записями · ${sourceSelectionLabel()}`;const metrics=[['Общий доход',money(s.total),`${s.recordCount} записей за период`,'wallet'],['В среднем за месяц',money(s.average),'Только месяцы с записями','chart'],['Лучший месяц',s.best?monthLabel(s.best.month,true):'—',s.best?money(s.best.total):'Нет записей','arrow'],['Активные источники',String(s.activeSources),'Текущий статус источников','check'],['Всего источников',String(s.totalSources),`${s.sources.length} с записями в периоде`,'grid'],['Самый прибыльный',s.sources[0]?.name||'—',s.sources[0]?money(s.sources[0].total):'Нет записей','arrow']];$('metrics').innerHTML=metrics.map((m,i)=>`<article class="metric"><div class="metric-label">${esc(m[0])}${ico(m[3])}</div><div class="metric-value ${i===5?'name':''}">${esc(m[1])}</div><div class="metric-foot">${esc(m[2])}</div></article>`).join('');renderBreakdowns(s);renderChart(chartOptions);}
 function renderBreakdowns(s){$('share-count').textContent=`${s.sources.length} ист.`;let offset=0;const positive=s.sources.filter(x=>x.total>0);const circumference=2*Math.PI*63;const rings=positive.map(x=>{const fraction=x.total/s.total,dash=Math.max(0,circumference*fraction-3);const svg=`<circle cx="80" cy="80" r="63" stroke="${x.color}" stroke-dasharray="${dash} ${circumference-dash}" stroke-dashoffset="${-offset}"/>`;offset+=circumference*fraction;return svg;}).join('');$('donut').innerHTML=`<svg viewBox="0 0 160 160" role="img" aria-label="Доли источников дохода"><circle cx="80" cy="80" r="63" stroke="var(--grid)"/>${rings}</svg><div class="donut-center"><strong>${s.total?'100%':'—'}</strong><span>${s.total?'общий доход':'нет дохода'}</span></div>`;$('share-legend').innerHTML=s.sources.length?s.sources.map(x=>`<div class="share-item"><i class="source-dot" style="background:${x.color}"></i><span class="label" title="${esc(x.name)}">${esc(x.name)}</span><strong>${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</strong></div>`).join(''):'<p class="muted help">В этом периоде пока нет записей.</p>';$('comparison').innerHTML=s.sources.length?s.sources.map(x=>`<div class="comparison-item"><div class="comparison-heading"><i class="source-dot" style="background:${x.color}"></i><span>${esc(x.name)}</span><strong>${esc(money(x.total))}</strong></div><div class="bar-track"><div class="bar-fill" style="width:${s.sources[0].total?x.total/s.sources[0].total*100:0}%;background:${x.color}"></div></div><div class="comparison-meta"><span>${x.active?'Активный':'Неактивный'} · ${x.count} мес.</span><span>${s.total?(100*x.total/s.total).toLocaleString('ru-RU',{maximumFractionDigits:1}):'0'}%</span></div></div>`).join(''):'<div class="empty-state"><h3>Пока нечего сравнивать</h3>Выберите другой период или добавьте доход.</div>';}
 let chartModel=null;
-function renderChart({animate=true}={}){
+function renderChart({animate=true,newSourcesOnly=false}={}){
  if(!data||view!=='overview')return;
  const model=incomeChart(data,...periodBounds(),sourceFilter),s=model.summary,container=$('chart');
  const legend=chartType==='bars'?model.bars:model.lines;
@@ -97,9 +97,11 @@ function renderChart({animate=true}={}){
   container.innerHTML=sourceFilter.length?'<div class="empty-state"><h3>Здесь появится ваш график</h3>Добавьте доход или выберите другой период.</div>':'<div class="empty-state"><h3>Выберите источники</h3>Отметьте их в списке над графиком.</div>';
   $('chart-range').textContent=sourceFilter.length?'Нет записей':'';chartModel=null;return;
  }
- const geometry=chartGeometry(model,chartType,container.clientWidth,container.clientHeight,{animate});
+ const now=performance.now(),previous=newSourcesOnly&&chartModel?.type===chartType?chartModel:null;
+ const lineReveals=animate&&chartType!=='bars'?lineRevealStarts(model,previous,now):new Map();
+ const geometry=chartGeometry(model,chartType,container.clientWidth,container.clientHeight,{animate,lineReveals,now});
  container.innerHTML=geometry.svg+'<div id="chart-tooltip" class="tooltip" hidden></div>';
- chartModel={...geometry,s,model};chartSelection=-1;
+ chartModel={...geometry,s,model,type:chartType,lineReveals};chartSelection=-1;
  $('chart-range').textContent=`${monthLabel(s.months[0].month,true)} — ${monthLabel(s.months.at(-1).month,true)}`;
 }
 function hideChartTooltip(){if($('chart-tooltip'))$('chart-tooltip').hidden=true;$('crosshair')?.setAttribute('opacity','0');document.querySelectorAll('.hover-dot').forEach(dot=>dot.setAttribute('opacity','0'));}

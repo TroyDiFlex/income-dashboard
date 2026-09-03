@@ -18,7 +18,7 @@ function picker(){
  };
  const document={querySelectorAll:()=>[],addEventListener(type,fn){this[type]=fn;}};
  const data={sources:[{id:'a',name:'Работа',active:true,order:0,color:'#a78bfa'},{id:'b',name:'Архив',active:false,order:1,color:'#5ed9bc'}]};
- const ctx=vm.createContext({$,document,data,sourceFilter:['all'],sortSources,esc:String,renderOverview(){renders++;}});
+ const ctx=vm.createContext({$,document,data,sourceFilter:['all'],sortSources,esc:String,renderOverview(options){assert.equal(options?.newSourcesOnly,true);renders++;}});
  vm.runInContext(pickerCode,ctx);
  const fire=(id,type,event={})=>$(id).listeners[type]?.(event);
  return {ctx,$,fire,document,selection:()=>Array.from(ctx.sourceFilter),focused:()=>focused,renders:()=>renders};

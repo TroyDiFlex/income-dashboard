@@ -1,5 +1,16 @@
 import {summarize,sortSources,niceCeiling,SHORT_MONTHS} from './model.js';
 
+export const LINE_REVEAL_MS=1600;
+
+export function lineRevealStarts(model,previous,now) {
+  const existing=new Set(previous?.model.lines.map(series=>series.id)),starts=new Map();
+  for(const series of model.lines){
+    const start=existing.has(series.id)?previous.lineReveals.get(series.id):now;
+    if(start!==undefined&&now-start<LINE_REVEAL_MS)starts.set(series.id,start);
+  }
+  return starts;
+}
+
 export function incomeChart(data,from,to,selection=['all']) {
   const selected=new Set(selection),summary=summarize(data,from,to,selection);
   const sources=sortSources(data.sources).filter(s=>selected.has(s.id));
@@ -16,7 +27,7 @@ export function incomeChart(data,from,to,selection=['all']) {
   return {summary,lines,bars};
 }
 
-export function chartGeometry(model,type,containerWidth,containerHeight,{animate=true}={}) {
+export function chartGeometry(model,type,containerWidth,containerHeight,{animate=true,lineReveals=null,now=0}={}) {
   const {summary:s,lines,bars}=model,width=Math.max(280,containerWidth),height=containerHeight;
   const left=44,right=12,top=12,bottom=34,plotW=width-left-right,plotH=height-top-bottom;
   const values=type==='bars'?s.months.map(m=>m.total):lines.flatMap(line=>line.months.map(m=>m.total));
@@ -51,10 +62,13 @@ export function chartGeometry(model,type,containerWidth,containerHeight,{animate
       fills+=`<g class="bar-stack" style="transform-origin:0 ${y(0)}px;--bar-delay:${Math.round(i/Math.max(1,n-1)*180)}ms" clip-path="url(#bar-clip-${i})">${m.total?pieces:`<rect class="bar" style="--series-color:${zeroColor}" x="${bx}" y="${by}" width="${w}" height="2"/>`}</g>`;
     });
   }else{
-    // Reveal every series on the same timeline, including fills and isolated points.
-    defs+=`<clipPath id="chart-reveal-clip" clipPathUnits="userSpaceOnUse"><rect class="chart-reveal" width="${width}" height="${height}"/></clipPath>`;
     lines.forEach((series,j)=>{
+      const start=lineReveals===null?now:lineReveals.get(series.id);
+      const reveal=animate&&start!==undefined&&now-start<LINE_REVEAL_MS;
+      const clip=reveal?` clip-path="url(#chart-reveal-clip-${j})"`:'';
+      if(reveal)defs+=`<clipPath id="chart-reveal-clip-${j}" clipPathUnits="userSpaceOnUse"><rect class="chart-reveal" style="--line-delay:${Math.min(0,start-now)}ms" width="${width}" height="${height}"/></clipPath>`;
       defs+=`<linearGradient id="chart-fill-${j}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${series.color}" stop-opacity=".23"/><stop offset="100%" stop-color="${series.color}" stop-opacity="0"/></linearGradient>`;
+      let lineFills='',lineStrokes='';
       const segments=[];let segment=[];
       series.months.forEach((m,i)=>{if(m.count)segment.push([x(i),y(m.total)]);else if(segment.length){segments.push(segment);segment=[];}});
       if(segment.length)segments.push(segment);
@@ -64,15 +78,17 @@ export function chartGeometry(model,type,containerWidth,containerHeight,{animate
           const p=points[i-1],q=points[i],mid=(p[0]+q[0])/2;
           path+=type==='smooth'?` C ${mid} ${p[1]}, ${mid} ${q[1]}, ${q[0]} ${q[1]}`:` L ${q.join(' ')}`;
         }
-        fills+=`<path d="${path} L ${points.at(-1)[0]} ${y(0)} L ${points[0][0]} ${y(0)} Z" fill="url(#chart-fill-${j})"/>`;
-        strokes+=`<path class="data-line" data-series="${j}" style="--series-color:${series.color}" d="${path}"/>`;
-        if(points.length===1)strokes+=`<circle class="chart-point" style="--series-color:${series.color}" cx="${points[0][0]}" cy="${points[0][1]}" r="4.5"/>`;
+        lineFills+=`<path d="${path} L ${points.at(-1)[0]} ${y(0)} L ${points[0][0]} ${y(0)} Z" fill="url(#chart-fill-${j})"/>`;
+        lineStrokes+=`<path class="data-line" data-series="${j}" style="--series-color:${series.color}" d="${path}"/>`;
+        if(points.length===1)lineStrokes+=`<circle class="chart-point" style="--series-color:${series.color}" cx="${points[0][0]}" cy="${points[0][1]}" r="4.5"/>`;
       }
+      // Keep every fill below every stroke; each source shares its own reveal clip.
+      fills+=`<g${clip}>${lineFills}</g>`;
+      strokes+=`<g${clip}>${lineStrokes}</g>`;
     });
   }
   const hoverSeries=type==='bars'?[{color:bars.length===1?bars[0].color:'var(--accent)',months:s.months}]:lines;
   const dots=hoverSeries.map((series,i)=>`<circle id="hover-dot-${i}" class="chart-point hover-dot" style="--series-color:${series.color}" r="5" opacity="0"/>`).join('');
-  const series=type==='bars'?fills:`<g clip-path="url(#chart-reveal-clip)">${fills}${strokes}</g>`;
-  const svg=`<svg${animate?' class="chart-enter"':''} viewBox="0 0 ${width} ${height}" aria-hidden="true"><defs>${defs}</defs>${axes}${series}<line id="crosshair" x1="0" x2="0" y1="${top}" y2="${y(0)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0"/>${dots}</svg>`;
+  const svg=`<svg${animate?' class="chart-enter"':''} style="--line-reveal-duration:${LINE_REVEAL_MS}ms" viewBox="0 0 ${width} ${height}" aria-hidden="true"><defs>${defs}</defs>${axes}${fills}${strokes}<line id="crosshair" x1="0" x2="0" y1="${top}" y2="${y(0)}" stroke="var(--muted)" stroke-dasharray="3 4" opacity="0"/>${dots}</svg>`;
   return {svg,x,y,width,left,step,hoverSeries};
 }
