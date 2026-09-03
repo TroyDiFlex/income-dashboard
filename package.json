@@ -1,0 +1,12 @@
+{
+  "name": "potok-income-dashboard",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node --check app.js && node --check api.js && node --check chart.js && node --check model.js && node --check pwa.js && node --check theme-head.js",
+    "test": "node --test tests/*.test.mjs"
+  }
+}
