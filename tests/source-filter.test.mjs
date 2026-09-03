@@ -20,7 +20,7 @@ function picker(){
  const data={sources:[{id:'a',name:'Работа',active:true,order:0,color:'#a78bfa'},{id:'b',name:'Архив',active:false,order:1,color:'#5ed9bc'}]};
  const ctx=vm.createContext({$,document,data,sourceFilter:['all'],sortSources,esc:String,renderOverview(){renders++;}});
  vm.runInContext(pickerCode,ctx);
- const fire=(id,type,event={})=>$(id).listeners[type](event);
+ const fire=(id,type,event={})=>$(id).listeners[type]?.(event);
  return {ctx,$,fire,document,selection:()=>Array.from(ctx.sourceFilter),focused:()=>focused,renders:()=>renders};
 }
 
@@ -53,6 +53,24 @@ test('aggregate plus a source is preserved; unchecking the aggregate leaves that
  p.fire('source-filter-options','change',{target:{closest:()=>({value:'all',checked:false})}});
  assert.deepEqual(p.selection(),['a']);
 });
+test('label pointerdown can blur the trigger before native checkbox activation without closing the panel',()=>{
+ const p=picker();p.fire('source-filter-trigger','click');
+ p.document.pointerdown({target:{inside:true}});
+ // Labels are not focusable. The old focusout handler hid the label before its click default action.
+ p.fire('source-filter','focusout',{currentTarget:p.$('source-filter'),relatedTarget:null});
+ assert.equal(p.$('source-filter-panel').hidden,false,'must stay open until the checkbox receives its click');
+ p.fire('source-filter-options','change',{target:{closest:()=>({value:'a',checked:true})}});
+ assert.deepEqual(p.selection(),['all','a']);assert.equal(p.renders(),1);
+ assert.equal(p.$('source-filter-panel').hidden,false);
+});
+test('master checkbox survives the same blur-before-click sequence',()=>{
+ const p=picker();p.fire('source-filter-trigger','click');
+ p.document.pointerdown({target:{inside:true}});
+ p.fire('source-filter','focusout',{currentTarget:p.$('source-filter'),relatedTarget:null});
+ assert.equal(p.$('source-filter-panel').hidden,false);
+ p.$('source-toggle-all').checked=true;p.fire('source-toggle-all','change');
+ assert.deepEqual(p.selection(),['all','a','b']);assert.equal(p.$('source-filter-panel').hidden,false);
+});
 test('keyboard opening focuses master checkbox; Escape closes and restores trigger focus',()=>{
  const p=picker();let prevented=0;
  p.fire('source-filter-trigger','keydown',{key:'ArrowDown',preventDefault(){prevented++;}});
@@ -64,9 +82,9 @@ test('keyboard opening focuses master checkbox; Escape closes and restores trigg
 test('outside click and leaving focus close the picker; inside interaction keeps it open',()=>{
  const p=picker();p.fire('source-filter-trigger','click');
  p.document.pointerdown({target:{inside:true}});assert.equal(p.$('source-filter-panel').hidden,false);
- p.fire('source-filter','focusout',{currentTarget:p.$('source-filter'),relatedTarget:{inside:true}});
+ p.document.focusin({target:{inside:true}});
  assert.equal(p.$('source-filter-panel').hidden,false);
  p.document.pointerdown({target:{}});assert.equal(p.$('source-filter-panel').hidden,true);
- p.fire('source-filter-trigger','click');p.fire('source-filter','focusout',{currentTarget:p.$('source-filter'),relatedTarget:null});
+ p.fire('source-filter-trigger','click');p.document.focusin({target:{}});
  assert.equal(p.$('source-filter-panel').hidden,true);
 });

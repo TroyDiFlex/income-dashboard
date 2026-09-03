@@ -66,7 +66,8 @@ function renderSourceFilter(){
 $('source-filter-trigger').addEventListener('click',()=>setSourceFilterOpen($('source-filter-panel').hidden));
 $('source-filter-trigger').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();setSourceFilterOpen(true,true);}});
 $('source-filter').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('source-filter-panel').hidden){e.preventDefault();setSourceFilterOpen(false,true);}});
-$('source-filter').addEventListener('focusout',e=>{if(!e.currentTarget.contains(e.relatedTarget))setSourceFilterOpen(false);});
+// A label click can blur the trigger before activating its checkbox. Close only when focus actually lands outside.
+document.addEventListener('focusin',e=>{if(!$('source-filter').contains(e.target))setSourceFilterOpen(false);});
 document.addEventListener('pointerdown',e=>{if(!$('source-filter').contains(e.target))setSourceFilterOpen(false);});
 $('source-filter-options').addEventListener('change',e=>{
  const input=e.target.closest('[data-filter-source]');if(!input||!data)return;
