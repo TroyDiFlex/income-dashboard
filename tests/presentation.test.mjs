@@ -15,13 +15,39 @@ test('chart controls start with the selected linear chart, then bars and smooth'
  assert.match(app,/\bchartType='line'/);
 });
 
-test('only the month overview option is hidden; monthly data entry is retained',async()=>{
+test('overview defaults to 24 months and keeps explicit long-range choices',async()=>{
  const periods=[...html.matchAll(/<button\b([^>]*\bdata-period="([^"]+)"[^>]*)>/g)];
- assert.deepEqual(periods.filter(([,attributes])=>! /\bhidden\b/.test(attributes)).map(([, ,period])=>period),['all','year','custom']);
- assert.ok(periods.some(([,attributes,period])=>period==='month'&&/\bhidden\b/.test(attributes)));
+ assert.deepEqual(periods.map(([, ,period])=>period),['12','24','36','all','year','custom']);
+ assert.deepEqual(periods.filter(([,attributes])=>/class="selected"/.test(attributes)).map(([, ,period])=>period),['24']);
+ assert.ok(!periods.some(([, ,period])=>period==='month'));
  assert.match(html,/<button data-mode="month">По месяцу<\/button>/);
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8');assert.match(app,/period='24'/);assert.match(app,/shiftMonth\(end,1-Number\(period\)\)/);
  const css=await readFile(new URL('../style.css',import.meta.url),'utf8');
  assert.match(css,/\[hidden\]\{display:none!important\}/);
+});
+
+test('overview replaces the duplicated total card with longitudinal comparisons',async()=>{
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
+ for(const label of ['Последний месяц','К предыдущему','Год к году','Среднее за 6 мес.','Среднее за 12 мес.','Лучший год'])assert.match(app,new RegExp(label));
+ assert.doesNotMatch(app,/\['Общий доход',money\(s\.total\)/);
+ assert.match(app,/incomeInsights\(data,from,to,sourceFilter\)/);
+});
+
+test('chart exposes the selected monthly values as an accessible table',async()=>{
+ assert.match(html,/<details class="chart-data">/);
+ assert.match(html,/<div id="chart-data-table" class="chart-data-table"><\/div>/);
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
+ assert.match(app,/<caption>Доходы по месяцам за выбранный период<\/caption>/);
+ assert.match(app,/<th scope="col">Месяц<\/th>/);
+ assert.match(app,/<th scope="row">\$\{monthLabel\(month\.month\)\}<\/th>/);
+});
+
+test('editable forms warn before unsaved values are discarded',async()=>{
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
+ assert.match(app,/const dirtyForms=new Set\(\)/);
+ assert.match(app,/window\.confirm\('Есть несохранённые изменения\. Закрыть без сохранения\?'\)/);
+ assert.match(app,/window\.addEventListener\('beforeunload',e=>\{if\(busy\|\|dirtyForms\.size\)/);
+ assert.match(app,/dirtyForms\.delete\(form\);form\.closest\('dialog'\)\?\.close\(\)/);
 });
 
 test('native select menus keep readable theme colors',async()=>{

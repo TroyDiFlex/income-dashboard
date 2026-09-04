@@ -32,7 +32,7 @@ test('picker uses labelled native checkboxes and an expandable styled button',()
 });
 test('default selection is independent of the mixed select-all checkbox',()=>{
  const p=picker();p.ctx.updateSourceFilter();
- assert.equal(p.$('source-filter-label').textContent,'Все источники');
+ assert.equal(p.$('source-filter-label').textContent,'Общий доход');
  assert.equal(p.$('source-toggle-all').checked,false);assert.equal(p.$('source-toggle-all').indeterminate,true);
 });
 test('select all, clear all and select one update immediately without closing the panel',()=>{
@@ -49,7 +49,7 @@ test('select all, clear all and select one update immediately without closing th
 test('aggregate plus a source is preserved; unchecking the aggregate leaves that source',()=>{
  const p=picker();
  p.fire('source-filter-options','change',{target:{closest:()=>({value:'a',checked:true})}});
- assert.deepEqual(p.selection(),['all','a']);assert.equal(p.$('source-filter-label').textContent,'Все источники + 1');
+ assert.deepEqual(p.selection(),['all','a']);assert.equal(p.$('source-filter-label').textContent,'Общий доход + 1');
  p.fire('source-filter-options','change',{target:{closest:()=>({value:'all',checked:false})}});
  assert.deepEqual(p.selection(),['a']);
 });

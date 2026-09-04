@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {incomeChart,chartGeometry,lineRevealStarts,LINE_REVEAL_MS} from '../chart.js';
-import {monthLabel} from '../model.js';
+import {money,monthLabel} from '../model.js';
 
 const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
 const renderCode=app.slice(app.indexOf('let chartModel=null;'),app.indexOf('function hideChartTooltip()'));
@@ -20,11 +20,11 @@ const data={sources:[
 function chart(type='line'){
  let now=0;
  const nodes=new Map(),$=id=>{
-  if(!nodes.has(id))nodes.set(id,{innerHTML:'',clientWidth:900,clientHeight:272,setAttribute(){}});
+  if(!nodes.has(id))nodes.set(id,{innerHTML:'',clientWidth:900,clientHeight:272,setAttribute(){},replaceChildren(){this.innerHTML='';}});
   return nodes.get(id);
  };
  const ctx=vm.createContext({$,data,view:'overview',chartType:type,sourceFilter:['all'],chartSelection:-1,
-  incomeChart,chartGeometry,lineRevealStarts,monthLabel,esc:String,
+  incomeChart,chartGeometry,lineRevealStarts,money,monthLabel,esc:String,
   sourceSelectionLabel:()=>'',periodBounds:()=>['2026-01','2026-04'],performance:{now:()=>now}
  });
  vm.runInContext(renderCode,ctx);

@@ -15,14 +15,14 @@ export function incomeChart(data,from,to,selection=['all']) {
   const selected=new Set(selection),summary=summarize(data,from,to,selection);
   const sources=sortSources(data.sources).filter(s=>selected.has(s.id));
   const sourceSeries=sources.map(source=>({...source,months:summarize(data,from,to,source.id).months}));
-  const total={id:'all',name:'Все источники',color:'var(--accent)',months:summary.months};
+  const total={id:'all',name:'Общий доход',color:'var(--accent)',months:summary.months};
   const lines=selected.has('all')?[total,...sourceSeries]:sourceSeries;
   // The aggregate is a total, never an extra contribution to a stacked bar.
   const remainder=selected.has('all')&&sources.length<data.sources.length;
   const bars=[...sourceSeries];
   if(remainder||selected.has('all')&&!sources.length){
     const rest=summarize(data,from,to,data.sources.filter(s=>!selected.has(s.id)).map(s=>s.id));
-    bars.push({...total,id:'remainder',name:sources.length?'Остальные источники':'Все источники',months:rest.months});
+    bars.push({...total,id:'remainder',name:sources.length?'Остальные источники':'Общий доход',months:rest.months});
   }
   return {summary,lines,bars};
 }
