@@ -360,5 +360,6 @@ $('source-confirm-form').addEventListener('submit',async e=>{
 });
 $('export-data').addEventListener('click',()=>{if(!data)return;const safe=value=>'"'+String(value).replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';const rows=[['Месяц','Источник','Сумма, ₽','Статус'],...data.entries.toSorted((a,b)=>a.month.localeCompare(b.month)||a.sourceId.localeCompare(b.sourceId)).map(e=>{const s=data.sources.find(s=>s.id===e.sourceId);return [e.month,s?.name||'',(e.amount/100).toString().replace('.',','),s?.active?'Активный':'Неактивный'];})];const blob=new Blob(['\ufeff'+rows.map(r=>r.map(safe).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Доходы.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('CSV содержит ваши доходы. Храните файл в безопасном месте.');});
 window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue='';}});
-if(!CONFIG.apiUrl)$('login-error').textContent='Подключение к Google ещё настраивается. Ваши доходы не хранятся в коде сайта.';
-else restoreSession();
+if(!CONFIG.apiUrl)showLogin('Подключение к Google ещё настраивается. Ваши доходы не хранятся в коде сайта.');
+else if(api.token)restoreSession();
+else showLogin();

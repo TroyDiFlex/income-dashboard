@@ -12,7 +12,7 @@
   <script src="theme-head.js?v=1"></script>
   <link rel="stylesheet" href="style.css">
   <script src="pwa.js?v=2" defer></script>
-  <script type="module" src="app.js?v=3"></script>
+  <script type="module" src="app.js?v=4"></script>
 </head>
 <body>
 <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
@@ -40,12 +40,12 @@
     <span class="lock-badge"><svg class="icon"><use href="#i-lock"/></svg> Личное пространство</span>
     <h1>Ваши доходы.<br><span>Вся картина.</span></h1>
     <p>Войдите, чтобы открыть аналитику<br>и добавить новые поступления.</p>
-    <div id="session-status" hidden>
-      <p id="session-message" role="status">Восстанавливаем вход…</p>
+    <div id="session-status">
+      <p id="session-message" role="status">Проверяем сохранённый вход…</p>
       <button id="session-retry" class="button primary" type="button" hidden>Повторить</button>
       <button id="session-reset" class="text-button" type="button">Войти заново</button>
     </div>
-    <form id="login-form">
+    <form id="login-form" hidden>
       <label for="password">Пароль</label>
       <div class="password-wrap"><input id="password" type="password" autocomplete="current-password" required placeholder="Введите пароль" minlength="1"><button type="button" id="show-password" class="text-button">Показать</button></div>
       <p id="login-error" class="error" role="alert"></p>
