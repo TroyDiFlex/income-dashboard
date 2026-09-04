@@ -37,6 +37,8 @@ export class Api {
     return result.data;
   }
   read(){return this.request('read');}
+  backup(){return this.request('backup');}
+  createBackup(){return this.request('createBackup');}
   mutate(revision,operation){return this.request('mutate',{revision,operation});}
   async logout(){const token=this.token;this.clearSession();if(token)await this.request('logout',{},token);}
 }

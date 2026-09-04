@@ -1,11 +1,14 @@
-import {monthRange,parseAmount,sortSources,validateData,validMonth} from './model.js';
+import {currentMonth,monthRange,parseAmount,sortSources,validateData,validMonth} from './model.js';
 
 export const BACKUP_SCHEMA='potok-income-backup';
 export const BACKUP_VERSION=1;
 export const CSV_DELETE_MARKER='—';
 const CSV_FIXED_HEADERS=['ID','Источник','Статус','Цвет','Порядок'];
 
-const quote=value=>`"${String(value).replace(/"/g,'""')}"`;
+const quote=value=>{
+  const safe=String(value).replace(/^[=+@-]/,"'$&");
+  return `"${safe.replace(/"/g,'""')}"`;
+};
 const entryKey=(sourceId,month)=>`${sourceId}|${month}`;
 
 export function backupFilename(createdAt=Date.now()) {
@@ -20,7 +23,7 @@ export function csvFilename(createdAt=Date.now()) {
 export function exportWideCsv(data) {
   validateData(data);
   const present=[...new Set(data.entries.map(entry=>entry.month))].sort();
-  const months=present.length?monthRange(present[0],present.at(-1)):[];
+  const months=present.length?monthRange(present[0],present.at(-1)):[currentMonth()];
   const amounts=new Map(data.entries.map(entry=>[entryKey(entry.sourceId,entry.month),entry.amount]));
   const rows=[[...CSV_FIXED_HEADERS,...months]];
   for(const source of sortSources(data.sources)){
@@ -67,7 +70,7 @@ function validateCsvHeaders(headers) {
 }
 
 function parseSourceRow(row,index,idFactory) {
-  const rawId=(row[0]||'').trim(),name=(row[1]||'').trim(),status=(row[2]||'').trim(),color=(row[3]||'').trim().toLowerCase(),rawOrder=(row[4]||'').trim();
+  const rawId=(row[0]||'').trim(),name=(row[1]||'').trim().replace(/^'(?=[=+@-])/,'') ,status=(row[2]||'').trim(),color=(row[3]||'').trim().toLowerCase(),rawOrder=(row[4]||'').trim();
   if(!name)throw new Error(`Строка ${index}: не указано название источника.`);
   if(status!=='Активный'&&status!=='Неактивный')throw new Error(`Строка ${index}: статус должен быть «Активный» или «Неактивный».`);
   if(!/^#[0-9a-f]{6}$/.test(color))throw new Error(`Строка ${index}: неверный цвет.`);
@@ -130,8 +133,18 @@ export function parseBackup(text) {
   if(backup?.schema!==BACKUP_SCHEMA||backup?.version!==BACKUP_VERSION)throw new Error('Это не поддерживаемая резервная копия «Потока».');
   if(!Number.isSafeInteger(backup.createdAt)||backup.createdAt<=0||typeof backup.checksum!=='string'||!/^[0-9a-f]{64}$/.test(backup.checksum))throw new Error('В резервной копии повреждены метаданные.');
   if(!backup.data||!Array.isArray(backup.data.sources)||!Array.isArray(backup.data.entries))throw new Error('В резервной копии отсутствуют данные.');
-  const visible=backup.data.sources.filter(source=>!source.deletedAt),visibleIds=new Set(visible.map(source=>source.id));
-  const publicShape={sources:visible,entries:backup.data.entries.filter(entry=>visibleIds.has(entry.sourceId))};
-  validateData(publicShape);
+  const sources=backup.data.sources.map(source=>{
+    if(source.deletedAt!==undefined&&(!Number.isSafeInteger(source.deletedAt)||source.deletedAt<=0))throw new Error('В резервной копии повреждена дата корзины.');
+    const copy={...source};delete copy.deletedAt;return copy;
+  });
+  validateData({sources,entries:backup.data.entries});
+  return backup;
+}
+
+export async function verifyBackupChecksum(backup) {
+  const bytes=new TextEncoder().encode(JSON.stringify([backup.data.sources,backup.data.entries]));
+  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  const actual=Array.from(new Uint8Array(digest),value=>value.toString(16).padStart(2,'0')).join('');
+  if(actual!==backup.checksum)throw new Error('Контрольная сумма резервной копии не совпадает.');
   return backup;
 }

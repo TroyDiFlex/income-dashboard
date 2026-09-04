@@ -2,6 +2,7 @@ import {CONFIG} from './config.js';
 import {Api,SESSION_KEY} from './api.js';
 import {incomeChart,chartGeometry,lineRevealStarts} from './chart.js';
 import {MONTH_NAMES,COLORS,currentMonth,monthLabel,monthRange,parseAmount,money,number,sortSources,summarize,recentMedian,validateData,validMonth} from './model.js';
+import {backupFilename,csvFilename,exportWideCsv,parseBackup,planWideCsvImport,verifyBackupChecksum} from './data-transfer.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ico=name=>`<svg class="icon"><use href="#i-${name}"/></svg>`;
@@ -18,6 +19,7 @@ let customThemeSettings=readThemeSettings();
 let comparisonMode='total';
 try{const saved=localStorage.getItem('potok-comparison-mode');if(['total','average'].includes(saved))comparisonMode=saved;}catch{}
 let data=null,view='overview',period='all',chartType='line',sourceFilter=['all'],selectedYear=currentMonth().slice(0,4),selectedMonth=currentMonth(),customFrom='',customTo='',tableYear=currentMonth().slice(0,4),entryMode=matchMedia('(max-width:650px)').matches?'month':'table',sourceColor=COLORS[0],busy=false,chartSelection=-1,toastTimer,authAttempt=0,restoring=false;
+let importPlan=null,importFileText='',importFileName='';
 function themeRgb(hex){return [1,3,5].map(index=>parseInt(hex.slice(index,index+2),16)).join(' ');}
 function renderThemeControls(){
  document.querySelectorAll('[data-custom-theme]').forEach(card=>{const name=card.dataset.customTheme,settings=customThemeSettings[name],rgb=themeRgb(settings.accent);card.style.setProperty('--preview-accent',settings.accent);card.style.setProperty('--preview-glow',`rgb(${rgb} / ${settings.glow*.012})`);const customizer=card.querySelector('[data-customizer]'),palette=customizer.querySelector('.theme-accent-options');customizer.style.setProperty('--glow-progress',`${settings.glow*10}%`);if(!palette.children.length)palette.innerHTML=THEME_ACCENTS.map(color=>`<button type="button" class="theme-accent" data-accent="${color}" style="--choice:${color}" aria-label="Акцент ${color}" title="${color}"></button>`).join('');customizer.querySelector('[data-accent-value]').textContent=settings.accent.toUpperCase();customizer.querySelector('[data-glow]').value=settings.glow;customizer.querySelector('[data-glow-value]').value=settings.glow;palette.querySelectorAll('[data-accent]').forEach(button=>{const selected=button.dataset.accent===settings.accent;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});});
@@ -358,7 +360,34 @@ $('source-confirm-form').addEventListener('submit',async e=>{
  const success=await mutate(operation,e.target,'source-confirm-error',operation.type==='trashSource'?'Источник перемещён в корзину':operation.type==='restoreSource'?'Источник восстановлен':'Источник удалён навсегда');
  closeButtons.forEach(b=>b.disabled=false);if(success&&operation.type==='trashSource')$('source-dialog').close();updateConfirmationButton();
 });
-$('export-data').addEventListener('click',()=>{if(!data)return;const safe=value=>'"'+String(value).replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';const rows=[['Месяц','Источник','Сумма, ₽','Статус'],...data.entries.toSorted((a,b)=>a.month.localeCompare(b.month)||a.sourceId.localeCompare(b.sourceId)).map(e=>{const s=data.sources.find(s=>s.id===e.sourceId);return [e.month,s?.name||'',(e.amount/100).toString().replace('.',','),s?.active?'Активный':'Неактивный'];})];const blob=new Blob(['\ufeff'+rows.map(r=>r.map(safe).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Доходы.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('CSV содержит ваши доходы. Храните файл в безопасном месте.');});
+function downloadFile(contents,name,type){const blob=new Blob([contents],{type}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function resetImport(){importPlan=null;importFileText='';importFileName='';$('import-form').reset();$('import-preview').textContent='Выберите файл для проверки.';$('import-preview').classList.remove('ready');$('import-error').textContent='';$('import-apply').disabled=true;}
+function importSummary(changes){return `Источники: +${changes.sourcesAdded}, изменится ${changes.sourcesChanged}. Суммы: +${changes.entriesAdded}, изменится ${changes.entriesChanged}, удалится ${changes.entriesDeleted}.`;}
+async function prepareImport(reuseText=false){
+ const file=$('import-file').files[0];importPlan=null;$('import-apply').disabled=true;$('import-error').textContent='';$('import-preview').classList.remove('ready');
+ if(!file&&!reuseText){$('import-preview').textContent='Выберите файл для проверки.';return;}
+ try{
+  if(!reuseText){importFileName=file.name;importFileText=await file.text();}
+  if(importFileName.toLowerCase().endsWith('.json')||importFileText.trimStart().startsWith('{')){
+   const backup=parseBackup(importFileText);await verifyBackupChecksum(backup);const trashed=backup.data.sources.filter(source=>source.deletedAt).length;
+   importPlan={kind:'backup',backup};$('import-preview').textContent=`Полное восстановление: ${backup.data.sources.length} источников, ${backup.data.entries.length} сумм, в корзине ${trashed}. Текущие данные будут предварительно сохранены на Google Drive.`;
+  }else{
+   const plan=planWideCsvImport(data,importFileText,{mode:$('import-mode').value});importPlan={kind:'csv',plan};$('import-preview').textContent=importSummary(plan.changes);
+  }
+  $('import-preview').classList.add('ready');$('import-apply').disabled=false;
+ }catch(error){$('import-preview').textContent=`Файл «${importFileName}» не прошёл проверку.`;$('import-error').textContent=error.message;}
+}
+$('data-tools').addEventListener('click',()=>{if(!data||busy)return;resetImport();$('backup-status').textContent='';$('data-dialog').showModal();});
+$('export-csv').addEventListener('click',()=>{if(!data)return;downloadFile(exportWideCsv(data),csvFilename(),'text/csv;charset=utf-8');toast('Редактируемая таблица CSV сохранена');});
+$('export-backup').addEventListener('click',async()=>{if(!data||busy)return;const button=$('export-backup');button.disabled=true;$('backup-status').textContent='Подготавливаем полную копию…';try{const backup=await api.backup();downloadFile(JSON.stringify(backup,null,2),backupFilename(backup.createdAt),'application/json;charset=utf-8');$('backup-status').textContent='Полная копия скачана.';}catch(error){$('backup-status').textContent=errorMessage(error);}finally{button.disabled=false;}});
+$('create-drive-backup').addEventListener('click',async()=>{if(!data||busy)return;const button=$('create-drive-backup');button.disabled=true;$('backup-status').textContent='Создаём копию…';try{const result=await api.createBackup();$('backup-status').textContent=`Создан файл ${result.name}.`;}catch(error){$('backup-status').textContent=errorMessage(error);}finally{button.disabled=false;}});
+$('import-file').addEventListener('change',prepareImport);
+$('import-mode').addEventListener('change',()=>{if(importFileText)prepareImport(true);});
+$('import-form').addEventListener('submit',async event=>{
+ event.preventDefault();if(!importPlan||busy)return;
+ const operation=importPlan.kind==='backup'?{type:'restoreBackup',backup:importPlan.backup}:{type:'importData',data:{sources:importPlan.plan.data.sources,entries:importPlan.plan.data.entries}};
+ const success=await mutate(operation,event.target,'import-error',importPlan.kind==='backup'?'Резервная копия восстановлена':'Импорт применён');if(success)resetImport();
+});
 window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue='';}});
 if(!CONFIG.apiUrl)showLogin('Подключение к Google ещё настраивается. Ваши доходы не хранятся в коде сайта.');
 else if(api.token)restoreSession();

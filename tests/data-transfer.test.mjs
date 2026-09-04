@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {BACKUP_SCHEMA,BACKUP_VERSION,CSV_DELETE_MARKER,diffData,exportWideCsv,parseBackup,parseCsv,planWideCsvImport} from '../data-transfer.js';
+import {BACKUP_SCHEMA,BACKUP_VERSION,CSV_DELETE_MARKER,diffData,exportWideCsv,parseBackup,parseCsv,planWideCsvImport,verifyBackupChecksum} from '../data-transfer.js';
+import {createHash} from 'node:crypto';
 
 const data={
  sources:[{id:'salary',name:'Работа; основная',active:true,color:'#a78bfa',order:0},{id:'old',name:'Старый "проект"',active:false,color:'#5ed9bc',order:1}],
@@ -49,9 +50,13 @@ test('diff distinguishes additions, edits and deletions',()=>{
  assert.deepEqual(diffData(data,after),{sourcesAdded:1,sourcesChanged:0,entriesAdded:1,entriesChanged:0,entriesDeleted:2});
 });
 
-test('backup parser accepts only versioned, checksummed Potok data',()=>{
- const backup={schema:BACKUP_SCHEMA,version:BACKUP_VERSION,createdAt:Date.now(),checksum:'a'.repeat(64),data:{sources:data.sources,entries:data.entries}};
+test('backup parser accepts only versioned Potok data and verifies its checksum',async()=>{
+ const contents={sources:data.sources,entries:data.entries};
+ const checksum=createHash('sha256').update(JSON.stringify([contents.sources,contents.entries])).digest('hex');
+ const backup={schema:BACKUP_SCHEMA,version:BACKUP_VERSION,createdAt:Date.now(),checksum,data:contents};
  assert.deepEqual(parseBackup(JSON.stringify(backup)),backup);
+ assert.deepEqual(await verifyBackupChecksum(backup),backup);
+ await assert.rejects(verifyBackupChecksum({...backup,checksum:'a'.repeat(64)}),/Контрольная сумма/);
  assert.throws(()=>parseBackup('{}'),/не поддерживаемая/);
  assert.throws(()=>parseBackup(JSON.stringify({...backup,checksum:'bad'})),/метаданные/);
 });
