@@ -1,16 +1,20 @@
 /**
  * Potok API. Deploy as a web app executing as the owner.
  * Public source contains NO credentials or income records.
- * Script properties: SPREADSHEET_ID, AUTH_SALT, AUTH_HASH.
+ * Script properties: SPREADSHEET_ID, AUTH_SALT, AUTH_HASH, BACKUP_FOLDER_ID.
  * AUTH_HASH = SHA-256(hex(PBKDF2-SHA256(password, UTF8(AUTH_SALT), 600000, 32))).
  * Every data operation requires an expiring random bearer session.
  */
 var SESSION_DURATION_MS_=30*24*60*60*1000;
 var TRASH_RETENTION_MS_=30*24*60*60*1000;
-function doGet() { return json_({ok:true,result:{service:'potok',version:3}}); }
+var BACKUP_RETENTION_MS_=90*24*60*60*1000;
+var BACKUP_SCHEMA_='potok-income-backup';
+var BACKUP_VERSION_=1;
+var MAX_REQUEST_CHARS_=3000000;
+function doGet() { return json_({ok:true,result:{service:'potok',version:4}}); }
 function doPost(e) {
   try {
-    if(!e || !e.postData || e.postData.contents.length>200000) fail_('BAD_REQUEST','Некорректный запрос.');
+    if(!e || !e.postData || e.postData.contents.length>MAX_REQUEST_CHARS_) fail_('BAD_REQUEST','Некорректный запрос.');
     var body; try{body=JSON.parse(e.postData.contents);}catch(error){fail_('BAD_REQUEST','Некорректный запрос.');}
     return json_({ok:true,result:dispatch_(body)});
   } catch(error) {
@@ -27,11 +31,18 @@ function dispatch_(body) {
   requireSession_(body.token);
   if(body.action==='logout'){properties.deleteProperty(sessionKey_(body.token));CacheService.getScriptCache().remove(sessionKey_(body.token));return {loggedOut:true};}
   if(body.action==='read')return read_();
+  if(body.action==='backup')return backupEnvelope_(readModel_(),'download');
+  if(body.action==='createBackup')return createDriveBackup_('manual');
   if(body.action==='mutate')return mutate_(body);
   if(body.action==='trashMaintenance'){
     var authorization=ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);
     if(authorization.getAuthorizationStatus()===ScriptApp.AuthorizationStatus.REQUIRED)return {scheduled:false,authorizationUrl:authorization.getAuthorizationUrl()};
     ensureTrashTrigger_();purgeExpiredSources();return {scheduled:true,lastRunAt:PropertiesService.getScriptProperties().getProperty('TRASH_LAST_RUN_AT')};
+  }
+  if(body.action==='backupMaintenance'){
+    var backupAuthorization=ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);
+    if(backupAuthorization.getAuthorizationStatus()===ScriptApp.AuthorizationStatus.REQUIRED)return {scheduled:false,authorizationUrl:backupAuthorization.getAuthorizationUrl()};
+    ensureBackupTrigger_();var saved=createDriveBackup_('scheduled');purgeOldBackups_();return {scheduled:true,backup:saved};
   }
   fail_('BAD_REQUEST','Неизвестное действие.');
 }
@@ -85,6 +96,37 @@ function publicData_(model){
   var sources=model.sources.filter(function(s){return !s.deletedAt;}),ids=new Set(sources.map(function(s){return s.id;}));
   return {sources:sources,entries:model.entries.filter(function(e){return ids.has(e.sourceId);}),trash:model.sources.filter(function(s){return !!s.deletedAt;}).map(function(s){var entries=model.entries.filter(function(e){return e.sourceId===s.id;});return Object.assign({},s,{expiresAt:s.deletedAt+TRASH_RETENTION_MS_,entryCount:entries.length,total:entries.reduce(function(sum,e){return sum+e.amount;},0)});}),revision:hash_(JSON.stringify([model.sources,model.entries]))};
 }
+function backupEnvelope_(model,reason){
+  var createdAt=Date.now(),sources=model.sources.map(function(source){return Object.assign({},source);}),entries=model.entries.map(function(entry){return Object.assign({},entry);});
+  return {schema:BACKUP_SCHEMA_,version:BACKUP_VERSION_,createdAt:createdAt,reason:reason,checksum:hash_(JSON.stringify([sources,entries])),data:{sources:sources,entries:entries}};
+}
+function backupFolder_(){
+  var id=PropertiesService.getScriptProperties().getProperty('BACKUP_FOLDER_ID');
+  if(!id)fail_('BACKUP_SETUP','Для безопасной операции сначала настройте папку резервных копий.');
+  try{return DriveApp.getFolderById(id);}catch(error){fail_('BACKUP_SETUP','Папка резервных копий недоступна. Проверьте BACKUP_FOLDER_ID и разрешения.');}
+}
+function backupName_(createdAt){return 'potok-backup-'+new Date(createdAt).toISOString().replace(/[:.]/g,'-')+'.json';}
+function createDriveBackup_(reason,model){
+  var envelope=backupEnvelope_(model||readModel_(),reason),name=backupName_(envelope.createdAt),file;
+  try{file=backupFolder_().createFile(name,JSON.stringify(envelope),MimeType.PLAIN_TEXT);file.setDescription('Автоматическая резервная копия «Потока». Причина: '+reason+'.');}
+  catch(error){if(error.apiCode)throw error;fail_('BACKUP','Не удалось создать резервную копию. Изменения не применены.');}
+  return {fileId:file.getId(),name:name,createdAt:envelope.createdAt,reason:reason};
+}
+function purgeOldBackups_(){
+  var files=backupFolder_().getFiles(),deadline=Date.now()-BACKUP_RETENTION_MS_,deleted=0;
+  while(files.hasNext()){
+    var file=files.next();
+    if(file.getName().indexOf('potok-backup-')===0&&file.getDateCreated().getTime()<deadline){file.setTrashed(true);deleted++;}
+  }
+  return deleted;
+}
+function ensureBackupTrigger_(){
+  if(!ScriptApp.getProjectTriggers().some(function(t){return t.getHandlerFunction()==='createScheduledBackup'&&t.getEventType()===ScriptApp.EventType.CLOCK;}))ScriptApp.newTrigger('createScheduledBackup').timeBased().everyDays(1).atHour(4).create();
+}
+function createScheduledBackup(){
+  var lock=LockService.getScriptLock();if(!lock.tryLock(15000))return;
+  try{var backup=createDriveBackup_('scheduled');purgeOldBackups_();return backup;}finally{lock.releaseLock();}
+}
 function read_(alreadyLocked){
   var lock;if(!alreadyLocked){lock=LockService.getScriptLock();if(!lock.tryLock(15000))fail_('BUSY','Другая запись ещё сохраняется. Попробуйте снова.');}
   try{var model=readModel_();purgeExpired_(model,Date.now());return publicData_(model);}finally{if(lock)lock.releaseLock();}
@@ -128,6 +170,53 @@ function writeRows_(sheet,rows,columns){
   sheet.getRange(2,1,needed,columns).setValues(matrix);
   SpreadsheetApp.flush();
 }
+function writeModel_(next,current){
+  var nextTrash=new Map(next.sources.filter(function(source){return source.deletedAt;}).map(function(source){return [source.id,source.deletedAt];}));
+  var currentTrash=new Map(current.sources.filter(function(source){return source.deletedAt;}).map(function(source){return [source.id,source.deletedAt];}));
+  try{
+    writeRows_(sheets_().sources,next.sources.map(function(s){return [s.id,safeText_(s.name),s.active?'Активный':'Неактивный',s.color,s.order];}),5);
+    writeRows_(sheets_().entries,next.entries.map(function(e){return [e.month,e.sourceId,e.amount/100];}),3);
+    var properties=PropertiesService.getScriptProperties(),all=properties.getProperties();
+    Object.keys(all).forEach(function(key){if(key.indexOf('trash:')===0&&!nextTrash.has(key.slice(6)))properties.deleteProperty(key);});
+    nextTrash.forEach(function(deletedAt,id){properties.setProperty('trash:'+id,String(deletedAt));});
+  }catch(error){
+    var restored=true;
+    try{
+      writeRows_(sheets_().sources,current.sources.map(function(s){return [s.id,safeText_(s.name),s.active?'Активный':'Неактивный',s.color,s.order];}),5);
+      writeRows_(sheets_().entries,current.entries.map(function(e){return [e.month,e.sourceId,e.amount/100];}),3);
+      var rollback=PropertiesService.getScriptProperties(),saved=rollback.getProperties();
+      Object.keys(saved).forEach(function(key){if(key.indexOf('trash:')===0&&!currentTrash.has(key.slice(6)))rollback.deleteProperty(key);});
+      currentTrash.forEach(function(deletedAt,id){rollback.setProperty('trash:'+id,String(deletedAt));});
+    }catch(rollbackError){restored=false;}
+    fail_('WRITE',restored?'Не удалось применить импорт. Исходные данные восстановлены; проверьте резервную копию перед повтором.':'Не удалось применить импорт и автоматически восстановить таблицу. Используйте созданную резервную копию.');
+  }
+}
+function validateImportedModel_(sources,entries){
+  if(sources.length>200||entries.length>20000)fail_('VALIDATION','Импорт превышает допустимый размер данных.');
+  var names={};
+  sources.forEach(function(source){
+    var key=source.name.trim().toLowerCase();if(names[key])fail_('VALIDATION','В импорте повторяется название источника.');names[key]=true;
+    if(source.deletedAt!==undefined&&(!Number.isSafeInteger(source.deletedAt)||source.deletedAt<=0))fail_('VALIDATION','В резервной копии повреждена дата корзины.');
+  });
+  validateModel_(sources,entries);
+}
+function importedModel_(operation,current){
+  if(operation.type==='restoreBackup'){
+    var backup=operation.backup;
+    if(!backup||backup.schema!==BACKUP_SCHEMA_||backup.version!==BACKUP_VERSION_||!Number.isSafeInteger(backup.createdAt)||!backup.data||!Array.isArray(backup.data.sources)||!Array.isArray(backup.data.entries))fail_('VALIDATION','Некорректная резервная копия.');
+    var rawSources=backup.data.sources.map(function(source){return Object.assign({},source);}),entries=backup.data.entries.map(function(entry){return Object.assign({},entry);});
+    if(backup.checksum!==hash_(JSON.stringify([rawSources,entries])))fail_('VALIDATION','Контрольная сумма резервной копии не совпадает.');
+    var sources=rawSources.map(function(source){var copy=Object.assign({},source);if(copy.deletedAt)copy.deletedAt=Date.now();return copy;});
+    validateImportedModel_(sources,entries);return {sources:sources,entries:entries};
+  }
+  var incoming=operation.data;
+  if(!incoming||!Array.isArray(incoming.sources)||!Array.isArray(incoming.entries))fail_('VALIDATION','Некорректный план импорта.');
+  var trashed=current.sources.filter(function(source){return source.deletedAt;}),trashIds=new Set(trashed.map(function(source){return source.id;}));
+  var visible=current.sources.filter(function(source){return !source.deletedAt;}),incomingIds=new Set(incoming.sources.map(function(source){return source.id;}));
+  if(visible.some(function(source){return !incomingIds.has(source.id);})||incoming.sources.some(function(source){return trashIds.has(source.id)||source.deletedAt;}))fail_('VALIDATION','CSV-импорт не может удалять источники или изменять корзину.');
+  var next={sources:incoming.sources.map(function(source){return Object.assign({},source);}).concat(trashed),entries:incoming.entries.map(function(entry){return Object.assign({},entry);}).concat(current.entries.filter(function(entry){return trashIds.has(entry.sourceId);}))};
+  validateImportedModel_(next.sources,next.entries);return next;
+}
 function mutate_(body){
   var lock=LockService.getScriptLock();if(!lock.tryLock(15000))fail_('BUSY','Другая запись ещё сохраняется. Попробуйте снова.');
   try{
@@ -151,6 +240,8 @@ function mutate_(body){
       if(current.entries.length>20000)fail_('VALIDATION','Достигнут предел: 20 000 записей.');
       validateModel_(current.sources,current.entries);
       writeRows_(sheets_().entries,current.entries.map(function(e){return [e.month,e.sourceId,e.amount/100];}),3);
+    }else if(op.type==='importData'||op.type==='restoreBackup'){
+      var next=importedModel_(op,current);createDriveBackup_('before-'+op.type,current);writeModel_(next,current);
     }else if(['trashSource','restoreSource','deleteSource'].indexOf(op.type)>=0){
       var target=current.sources.find(function(s){return s.id===op.sourceId;});if(!target)fail_('VALIDATION','Источник не найден. Обновите данные.');
       if(op.type==='trashSource'){
@@ -159,7 +250,7 @@ function mutate_(body){
       }else{
         if(!target.deletedAt)fail_('VALIDATION','Сначала переместите источник в корзину.');
         if(op.type==='restoreSource'){PropertiesService.getScriptProperties().deleteProperty('trash:'+target.id);}
-        else removeSources_(current,new Set([target.id]));
+        else{createDriveBackup_('before-delete-source',current);removeSources_(current,new Set([target.id]));}
       }
     }else fail_('BAD_REQUEST','Неизвестный тип изменения.');
     return publicData_(readModel_());

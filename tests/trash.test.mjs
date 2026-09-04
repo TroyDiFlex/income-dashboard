@@ -36,6 +36,7 @@ test('restoration at the last millisecond cancels expiry, and moving it back sta
 test('permanent deletion is allowed only from trash and only removes the target and its dependent rows',async()=>{
  const s=await setup();assert.equal(s.mutate({type:'deleteSource',sourceId:'a'}).code,'VALIDATION');
  s.mutate({type:'trashSource',sourceId:'b'});assert.equal(s.mutate({type:'deleteSource',sourceId:'b'}).ok,true);
+ assert.equal(s.h.backups.length,1);assert.equal(JSON.parse(s.h.backups[0].contents).reason,'before-delete-source');
  assert.deepEqual(s.data.sources,[seed.sources[0]]);assert.deepEqual(s.data.entries,[seed.entries[0]]);assert.deepEqual(s.data.trash,[]);
  assert.equal(s.mutate({type:'restoreSource',sourceId:'b'}).code,'VALIDATION');
 });
