@@ -1,13 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {access,readFile,readdir} from 'node:fs/promises';
+import {CUSTOM_THEME_DEFAULTS,THEME_ACCENTS,THEME_SETTINGS_KEY,normalizeThemeSettings} from '../theme.js';
 
 const root=new URL('../',import.meta.url);
-const [html,app,css,head]=await Promise.all(['index.html','app.js','style.css','theme-head.js'].map(file=>readFile(new URL(file,root),'utf8')));
+const [html,app,css,head,theme]=await Promise.all(['index.html','app.js','style.css','theme-head.js','theme.js'].map(file=>readFile(new URL(file,root),'utf8')));
 
 test('Obsidian is the default and both configurable themes are exposed symmetrically',()=>{
  assert.match(html,/<html lang="ru" data-theme="obsidian">/);
- assert.match(app,/localStorage\.getItem\(THEME_KEY\)\|\|'obsidian'/);
+ assert.match(theme,/storage\.getItem\(THEME_KEY\)\|\|'obsidian'/);
+ assert.match(app,/setupTheme\(\)/);
  assert.deepEqual([...html.matchAll(/class="theme-select" data-theme="([^"]+)"/g)].map(match=>match[1]),['obsidian','quartz','violet','midnight','forest','light']);
  assert.equal((html.match(/data-theme-settings=/g)||[]).length,2);
  assert.equal((html.match(/data-glow aria-label=/g)||[]).length,2);
@@ -17,13 +19,14 @@ test('Obsidian is the default and both configurable themes are exposed symmetric
 });
 
 test('custom accent and glow settings are validated and persisted locally',()=>{
- const palette=app.match(/const THEME_ACCENTS=\[([^\]]+)\]/)?.[1].match(/#[0-9a-f]{6}/g)||[];
- assert.equal(palette.length,12);
- assert.equal(new Set(palette).size,12);
- assert.equal(palette[0],'#fb7185');
- assert.match(app,/THEME_SETTINGS_KEY='potok-theme-customization'/);
- assert.match(app,/localStorage\.setItem\(THEME_SETTINGS_KEY,JSON\.stringify\(customThemeSettings\)\)/);
- assert.match(app,/glow>=0&&value\.glow<=10/);
+ assert.equal(THEME_ACCENTS.length,12);
+ assert.equal(new Set(THEME_ACCENTS).size,12);
+ assert.equal(THEME_ACCENTS[0],'#fb7185');
+ assert.equal(THEME_SETTINGS_KEY,'potok-theme-customization');
+ assert.deepEqual(normalizeThemeSettings({obsidian:{accent:'#38bdf8',glow:0},quartz:{accent:'bad',glow:11}}),{
+  obsidian:{accent:'#38bdf8',glow:0},quartz:CUSTOM_THEME_DEFAULTS.quartz
+ });
+ assert.match(theme,/storage\.setItem\(THEME_SETTINGS_KEY,JSON\.stringify\(customThemeSettings\)\)/);
  assert.match(css,/310px at 72% 0/);
 });
 
@@ -39,7 +42,7 @@ test('head branding synchronizes theme color, favicon, Apple icon, and manifest'
  assert.match(head,/data:image\/svg\+xml/);
  assert.match(head,/manifests\/\$\{key\}\.webmanifest\?v=1/);
  assert.match(head,/icons\/themes\/\$\{key\}-apple\.png\?v=1/);
- assert.match(app,/potok-theme-change/);
+ assert.match(theme,/potok-theme-change/);
 });
 
 test('every selectable theme and accent has stable install assets',async()=>{
