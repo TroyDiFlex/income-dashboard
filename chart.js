@@ -11,18 +11,34 @@ export function lineRevealStarts(model,previous,now) {
   return starts;
 }
 
+function seriesForMonths(data,months,sources){
+  const indexes=new Map(months.map((month,index)=>[month.month,index]));
+  const result=sortSources(sources).map(source=>({...source,months:months.map(month=>({month:month.month,total:0,count:0}))}));
+  const byId=new Map(result.map(series=>[series.id,series]));
+  for(const entry of data.entries){
+    const series=byId.get(entry.sourceId),index=indexes.get(entry.month);
+    if(series&&index!==undefined){series.months[index].total+=entry.amount;series.months[index].count++;}
+  }
+  return result;
+}
+
+export function incomeSourceSeries(data,from,to,sources=data.sources){
+  return seriesForMonths(data,summarize(data,from,to,[]).months,sources);
+}
+
 export function incomeChart(data,from,to,selection=['all']) {
   const selected=new Set(selection),summary=summarize(data,from,to,selection);
   const sources=sortSources(data.sources).filter(s=>selected.has(s.id));
-  const sourceSeries=sources.map(source=>({...source,months:summarize(data,from,to,source.id).months}));
+  const sourceSeries=seriesForMonths(data,summary.months,sources);
   const total={id:'all',name:'Общий доход',color:'var(--accent)',months:summary.months};
   const lines=selected.has('all')?[total,...sourceSeries]:sourceSeries;
   // The aggregate is a total, never an extra contribution to a stacked bar.
   const remainder=selected.has('all')&&sources.length<data.sources.length;
   const bars=[...sourceSeries];
   if(remainder||selected.has('all')&&!sources.length){
-    const rest=summarize(data,from,to,data.sources.filter(s=>!selected.has(s.id)).map(s=>s.id));
-    bars.push({...total,id:'remainder',name:sources.length?'Остальные источники':'Общий доход',months:rest.months});
+    const restSources=data.sources.filter(s=>!selected.has(s.id)),rest=seriesForMonths(data,summary.months,restSources);
+    const months=summary.months.map((month,index)=>rest.reduce((value,series)=>({month:month.month,total:value.total+series.months[index].total,count:value.count+series.months[index].count}),{month:month.month,total:0,count:0}));
+    bars.push({...total,id:'remainder',name:sources.length?'Остальные источники':'Общий доход',months});
   }
   return {summary,lines,bars};
 }

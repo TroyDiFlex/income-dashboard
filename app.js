@@ -1,7 +1,7 @@
 import {CONFIG} from './config.js';
 import {Api,SESSION_KEY} from './api.js';
-import {incomeChart,chartGeometry,lineRevealStarts} from './chart.js';
-import {COLORS,currentMonth,monthLabel,shiftMonth,parseAmount,money,number,sortSources,summarize,incomeInsights,validateData,validMonth} from './model.js';
+import {incomeChart,incomeSourceSeries,chartGeometry,lineRevealStarts} from './chart.js';
+import {COLORS,currentMonth,monthLabel,shiftMonth,parseAmount,money,number,summarize,incomeInsights,validateData,validMonth} from './model.js';
 import {setupDataTools} from './data-tools.js';
 import {entriesTableHtml,entryInputValue,monthFieldsHtml,sourceOptionsHtml} from './entries-view.js';
 import {setupSourceFilter} from './source-filter.js';
@@ -207,8 +207,9 @@ function renderChart({animate=true,newSourcesOnly=false}={}){
  const now=performance.now(),previous=newSourcesOnly&&chartModel?.type===chartType?chartModel:null;
  const lineReveals=animate&&chartType!=='bars'?lineRevealStarts(model,previous,now):new Map();
  const geometry=chartGeometry(model,chartType,container.clientWidth,container.clientHeight,{animate,lineReveals,now});
+ const tooltipRows=sourceFilter.length===1&&sourceFilter[0]==='all'?incomeSourceSeries(data,...periodBounds()):chartType==='bars'?model.bars:model.lines.filter(series=>series.id!=='all');
   container.innerHTML=geometry.svg+'<div id="chart-tooltip" class="tooltip" hidden></div>';
-  chartModel={...geometry,s,model,type:chartType,lineReveals};chartSelection=-1;
+  chartModel={...geometry,s,model,type:chartType,lineReveals,tooltipRows};chartSelection=-1;
   $('chart-range').textContent=`${monthLabel(s.months[0].month,true)} — ${monthLabel(s.months.at(-1).month,true)}`;
   const series=model.lines.length?model.lines:[{id:'all',name:'Общий доход',months:s.months}];
   $('chart-data-table').innerHTML=`<table><caption>Доходы по месяцам за выбранный период</caption><thead><tr><th scope="col">Месяц</th>${series.map(item=>`<th scope="col">${esc(item.name)}</th>`).join('')}</tr></thead><tbody>${s.months.map((month,index)=>`<tr><th scope="row">${monthLabel(month.month)}</th>${series.map(item=>{const point=item.months[index];return `<td>${point.count?esc(money(point.total)):'Нет записи'}</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;
@@ -216,16 +217,14 @@ function renderChart({animate=true,newSourcesOnly=false}={}){
 function hideChartTooltip(){if($('chart-tooltip'))$('chart-tooltip').hidden=true;$('crosshair')?.setAttribute('opacity','0');document.querySelectorAll('.hover-dot').forEach(dot=>dot.setAttribute('opacity','0'));}
 function chartTooltip(index){
  if(!chartModel)return;
- const {s,x,y,width,model,hoverSeries}=chartModel;
+ const {s,x,y,width,hoverSeries,tooltipRows}=chartModel;
  index=Math.max(0,Math.min(s.months.length-1,index));
  const m=s.months[index],tip=$('chart-tooltip');
  if(index===chartSelection&&!tip.hidden)return;
  chartSelection=index;
  // Start each hover at its selected month; animate only subsequent movement.
  tip.style.transition=tip.hidden?'none':'';
- let rows=chartType==='bars'?model.bars:model.lines.filter(series=>series.id!=='all');
- if(sourceFilter.length===1&&sourceFilter[0]==='all')rows=sortSources(data.sources).map(src=>({...src,months:summarize(data,...periodBounds(),src.id).months}));
- tip.innerHTML=`<small>${monthLabel(m.month)} · ${sourceFilter.includes('all')?'Общий доход':'Выбранные источники'}</small><b>${m.count?esc(money(m.total)):'Нет записей'}</b>`+rows.map(series=>{
+ tip.innerHTML=`<small>${monthLabel(m.month)} · ${sourceFilter.includes('all')?'Общий доход':'Выбранные источники'}</small><b>${m.count?esc(money(m.total)):'Нет записей'}</b>`+tooltipRows.map(series=>{
   const point=series.months[index];return `<div class="tooltip-row"><span title="${esc(series.name)}"><i class="source-dot" style="background:${series.color}"></i>${esc(series.name)}</span><span>${point.count?esc(money(point.total)):'Нет записи'}</span></div>`;
  }).join('');
  tip.hidden=false;

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
-import {incomeChart,chartGeometry,lineRevealStarts,LINE_REVEAL_MS} from '../chart.js';
+import {incomeChart,incomeSourceSeries,chartGeometry,lineRevealStarts,LINE_REVEAL_MS} from '../chart.js';
 import {money,monthLabel} from '../model.js';
 
 const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
@@ -24,7 +24,7 @@ function chart(type='line'){
   return nodes.get(id);
  };
  const ctx=vm.createContext({$,data,view:'overview',chartType:type,sourceFilter:['all'],chartSelection:-1,
-  incomeChart,chartGeometry,lineRevealStarts,money,monthLabel,esc:String,
+  incomeChart,incomeSourceSeries,chartGeometry,lineRevealStarts,money,monthLabel,esc:String,
   sourceFilterUi:{label:()=>''},periodBounds:()=>['2026-01','2026-04'],performance:{now:()=>now}
  });
  vm.runInContext(renderCode,ctx);

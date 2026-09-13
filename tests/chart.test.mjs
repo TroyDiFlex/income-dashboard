@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {incomeChart,chartGeometry} from '../chart.js';
+import {incomeChart,incomeSourceSeries,chartGeometry} from '../chart.js';
 import {summarize} from '../model.js';
 
 const data={sources:[
@@ -58,6 +58,12 @@ test('period bounds, archived sources, explicit zero and missing months survive'
  assert.equal(m.summary.total,5000);assert.equal(m.lines[1].months[0].count,1);
  assert.equal(m.lines[1].months[0].total,0);assert.equal(m.lines[2].months[0].count,0);
  assert.equal(m.lines[3].months[0].total,5000);assert.equal(m.summary.months[1].count,0);
+});
+test('tooltip source series are built once with the same missing and zero semantics',()=>{
+ const series=incomeSourceSeries(data,'2026-01','2026-04');
+ assert.deepEqual(series.map(item=>item.id),['a','b','c']);
+ assert.deepEqual(series[0].months.map(month=>[month.total,month.count]),[[10000,1],[0,1],[0,0],[20000,1]]);
+ assert.deepEqual(series[1].months.map(month=>month.total),[30000,0,0,80000]);
 });
 test('each line has its own gradient, color, hover dot and independent missing-data gaps',()=>{
  const {svg}=chartGeometry(model(['all','a','b','c']),'smooth',900,272);

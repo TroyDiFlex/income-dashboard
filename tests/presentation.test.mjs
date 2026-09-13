@@ -42,6 +42,12 @@ test('chart exposes the selected monthly values as an accessible table',async()=
  assert.match(app,/<th scope="row">\$\{monthLabel\(month\.month\)\}<\/th>/);
 });
 
+test('chart hover uses precomputed source rows instead of recalculating on pointer movement',async()=>{
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
+ const tooltip=app.slice(app.indexOf('function chartTooltip'),app.indexOf("$('chart').addEventListener('pointermove'"));
+ assert.match(app,/tooltipRows=sourceFilter/);assert.doesNotMatch(tooltip,/summarize\(|incomeSourceSeries\(/);
+});
+
 test('editable forms warn before unsaved values are discarded',async()=>{
  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
  assert.match(app,/const dirtyForms=new Set\(\)/);
