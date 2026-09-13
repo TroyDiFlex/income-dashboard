@@ -9,7 +9,7 @@ const tools=await readFile(new URL('../data-tools.js',import.meta.url),'utf8');
 const api=await readFile(new URL('../api.js',import.meta.url),'utf8');
 
 test('data tools expose editable CSV, exact JSON backup and checked import',()=>{
- for(const id of ['data-tools','export-csv','export-backup','create-drive-backup','import-file','import-mode','import-preview','import-apply'])assert.match(html,new RegExp(`id="${id}"`));
+ for(const id of ['data-tools','export-csv','export-backup','create-drive-backup','setup-drive-backups','import-file','import-mode','import-preview','import-apply'])assert.match(html,new RegExp(`id="${id}"`));
  assert.doesNotMatch(html,/id="export-data"\s+hidden/);
  assert.match(html,/Безопасное объединение/);assert.match(html,/Заменить месяцы из файла/);
  assert.match(html,/пустые ячейки ничего не удаляют/);assert.match(html,/сервер создаст отдельную резервную копию/);
@@ -29,4 +29,5 @@ test('front end verifies backup checksum and previews CSV changes before enablin
 test('API keeps backup operations behind the authenticated request client',()=>{
  assert.match(api,/backup\(\)\{return this\.request\('backup'\);\}/);
  assert.match(api,/createBackup\(\)\{return this\.request\('createBackup'\);\}/);
+ assert.match(api,/backupMaintenance\(\)\{return this\.request\('backupMaintenance'\);\}/);
 });

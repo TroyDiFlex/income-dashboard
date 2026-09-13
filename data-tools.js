@@ -59,6 +59,18 @@ export function setupDataTools({api,getData,isBusy,canOpen,mutate,toast,errorMes
   try{const result=await api.createBackup();$('backup-status').textContent=`Создан файл ${result.name}.`;}
   catch(error){$('backup-status').textContent=errorMessage(error);}finally{button.disabled=false;}
  });
+ $('setup-drive-backups').addEventListener('click',async()=>{
+  if(!getData()||isBusy())return;const button=$('setup-drive-backups'),status=$('backup-status');button.disabled=true;status.textContent='Настраиваем ежедневные копии…';
+  try{
+   const result=await api.backupMaintenance();
+   if(result.scheduled)status.textContent='Ежедневные копии включены. Создана контрольная копия.';
+   else{
+    status.textContent='Google требует разовое разрешение. ';
+    const authorizationUrl=new window.URL(result.authorizationUrl);if(authorizationUrl.protocol!=='https:'||authorizationUrl.hostname!=='script.google.com')throw new Error('Сервер вернул некорректную ссылку авторизации.');
+    const link=document.createElement('a');link.href=authorizationUrl.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Выдать разрешение';status.append(link);
+   }
+  }catch(error){status.textContent=errorMessage(error);}finally{button.disabled=false;}
+ });
  $('import-file').addEventListener('change',()=>prepareImport());
  $('import-mode').addEventListener('change',()=>{if(importFileText)prepareImport(true);});
  $('import-form').addEventListener('submit',async event=>{
