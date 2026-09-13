@@ -3,6 +3,7 @@ export const SHORT_MONTHS = ['янв','фев','мар','апр','май','ию�
 export const COLORS = ['#a78bfa','#5ed9bc','#f5bd72','#ec88bf','#79b8ff','#d3d96c','#ff9292','#b5b0ce',
   '#68c8d9','#8f9bea','#d99caa','#d99b7c','#94c987','#ef5b62','#f29a45','#f1cd4f','#4fc773',
   '#267f92','#3d78cf','#7b5aa6','#a94750','#4b8f61'];
+export const MAX_HISTORY_MONTHS=1200;
 export const validMonth = value => typeof value === 'string' && /^(19|20|21)\d{2}-(0[1-9]|1[0-2])$/.test(value);
 export const monthLabel = (value, short = false) => validMonth(value) ? `${(short ? SHORT_MONTHS : MONTH_NAMES)[Number(value.slice(5))-1]} ${value.slice(0,4)}` : '—';
 export const currentMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
@@ -15,6 +16,7 @@ export function monthRange(from, to) {
   if (!validMonth(from) || !validMonth(to) || from > to) return [];
   const start=Number(from.slice(0,4))*12+Number(from.slice(5))-1;
   const end=Number(to.slice(0,4))*12+Number(to.slice(5))-1;
+  if(end-start+1>MAX_HISTORY_MONTHS)throw new Error('Период не может превышать 100 лет.');
   return Array.from({length:end-start+1},(_,offset)=>{
     const index=start+offset;
     return `${Math.floor(index/12)}-${String(index%12+1).padStart(2,'0')}`;
