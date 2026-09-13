@@ -3,6 +3,7 @@ import {Api,SESSION_KEY} from './api.js';
 import {incomeChart,chartGeometry,lineRevealStarts} from './chart.js';
 import {MONTH_NAMES,COLORS,currentMonth,monthLabel,monthRange,shiftMonth,parseAmount,money,number,sortSources,summarize,incomeInsights,validateData,validMonth} from './model.js';
 import {setupDataTools} from './data-tools.js';
+import {setupSourceFilter} from './source-filter.js';
 import {setupTheme} from './theme.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -13,6 +14,7 @@ let comparisonMode='average';
 try{const saved=localStorage.getItem('potok-comparison-mode');if(['total','average'].includes(saved))comparisonMode=saved;}catch{}
 let data=null,view='overview',period='24',chartType='line',sourceFilter=['all'],selectedYear=currentMonth().slice(0,4),selectedMonth=currentMonth(),customFrom='',customTo='',tableYear=currentMonth().slice(0,4),entryMode=matchMedia('(max-width:650px)').matches?'month':'table',sourceColor=COLORS[0],busy=false,chartSelection=-1,toastTimer,authAttempt=0,restoring=false;
 const dirtyForms=new Set();let renderedEntryMonth=currentMonth();
+const sourceFilterUi=setupSourceFilter({getSources:()=>data?.sources||[],getSelection:()=>sourceFilter,setSelection:value=>{sourceFilter=value;},onChange:options=>renderOverview(options)});
 function markDirty(form){dirtyForms.add(form);}
 function discardAllowed(form){if(!form||!dirtyForms.has(form))return true;if(!window.confirm('Есть несохранённые изменения. Закрыть без сохранения?'))return false;dirtyForms.delete(form);return true;}
 function closeDialogSafely(dialog){if(discardAllowed(dialog.querySelector('form')))dialog.close();}
@@ -20,8 +22,8 @@ function toast(message){$('toast').textContent=message;$('toast').hidden=false;c
 function banner(message,error=false){$('connection-banner').textContent=message;$('connection-banner').hidden=!message;$('connection-banner').classList.toggle('error',error);}
 function errorMessage(error){if(error.code==='SESSION'){lock();return 'Сессия закончилась. Войдите снова.';}if(error.code==='CONFLICT')return 'Данные изменены на другом устройстве или в таблице. Закройте форму, нажмите «Обновить» и повторите изменение. Введённые значения пока сохранены в форме.';return error.message||'Не удалось сохранить. Попробуйте ещё раз.';}
 function showLogin(message=''){$('session-status').hidden=true;$('login-form').hidden=false;$('login-submit').disabled=false;$('login-error').textContent=message;}
-function lock(){authAttempt++;restoring=false;api.logout().catch(()=>{});data=null;chartModel=null;sourceFilter=['all'];dirtyForms.clear();setSourceFilterOpen(false);$('source-filter-label').textContent='Общий доход';$('source-toggle-all').checked=false;$('source-toggle-all').indeterminate=false;document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('workspace').hidden=true;$('lock-screen').hidden=false;$('password').value='';showLogin();['chart','chart-data-table','chart-legend','metrics','comparison','share-legend','donut','table-container','month-fields','hero-total','hero-caption','chart-range','updated-at','month-total','edit-source','source-filter-options','trash-list','source-confirm-name','source-confirm-description'].forEach(id=>$(id).replaceChildren());$('edit-form').reset();$('source-form').reset();$('month-error').textContent='';$('toast').hidden=true;banner('');$('password').focus();}
-function openWorkspace(result){data=validateData(result);sourceFilter=restoreSourceFilter();$('password').value='';$('lock-screen').hidden=true;$('workspace').hidden=false;const months=data.entries.map(e=>e.month).sort();if(months.length){selectedYear=months.at(-1).slice(0,4);tableYear=selectedYear;selectedMonth=months.at(-1);}customFrom=months[0]||currentMonth();customTo=months.at(-1)||currentMonth();$('entry-month').value=currentMonth();render();navigate();}
+function lock(){authAttempt++;restoring=false;api.logout().catch(()=>{});data=null;chartModel=null;sourceFilterUi.reset();dirtyForms.clear();document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('workspace').hidden=true;$('lock-screen').hidden=false;$('password').value='';showLogin();['chart','chart-data-table','chart-legend','metrics','comparison','share-legend','donut','table-container','month-fields','hero-total','hero-caption','chart-range','updated-at','month-total','edit-source','source-filter-options','trash-list','source-confirm-name','source-confirm-description'].forEach(id=>$(id).replaceChildren());$('edit-form').reset();$('source-form').reset();$('month-error').textContent='';$('toast').hidden=true;banner('');$('password').focus();}
+function openWorkspace(result){data=validateData(result);sourceFilter=sourceFilterUi.restore();$('password').value='';$('lock-screen').hidden=true;$('workspace').hidden=false;const months=data.entries.map(e=>e.month).sort();if(months.length){selectedYear=months.at(-1).slice(0,4);tableYear=selectedYear;selectedMonth=months.at(-1);}customFrom=months[0]||currentMonth();customTo=months.at(-1)||currentMonth();$('entry-month').value=currentMonth();render();navigate();}
 async function restoreSession(){
  if(!api.token||restoring||data)return;
  const attempt=++authAttempt;restoring=true;$('login-form').hidden=true;$('session-status').hidden=false;$('session-message').textContent='Восстанавливаем вход…';$('session-retry').hidden=true;
@@ -48,54 +50,13 @@ function yearOptions(value){return years().map(y=>`<option value="${y}" ${y===va
 function renderPeriod(){document.querySelectorAll('[data-period]').forEach(b=>{b.classList.toggle('selected',b.dataset.period===period);b.setAttribute('aria-pressed',String(b.dataset.period===period));});let html='';if(period==='year')html=`<label class="sr-only" for="filter-year">Год</label><select id="filter-year">${yearOptions(selectedYear)}</select>`;if(period==='custom')html=`<label class="sr-only" for="filter-from">Начало периода</label><input type="month" id="filter-from" value="${customFrom}"><span class="muted">—</span><label class="sr-only" for="filter-to">Конец периода</label><input type="month" id="filter-to" value="${customTo}">`;$('period-controls').innerHTML=html;
  $('filter-year')?.addEventListener('change',e=>{selectedYear=e.target.value;renderOverview();});['filter-from','filter-to'].forEach(id=>$(id)?.addEventListener('change',()=>{const from=$('filter-from').value,to=$('filter-to').value;if(!validMonth(from)||!validMonth(to)||from>to){toast('Начало периода должно быть раньше конца.');return;}customFrom=from;customTo=to;renderOverview();}));}
 $('period-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-period]');if(b){period=b.dataset.period;renderPeriod();renderOverview();}});
-function restoreSourceFilter(){
- try{const saved=JSON.parse(localStorage.getItem('potok-source-filter'));if(Array.isArray(saved)&&saved.every(id=>typeof id==='string'))return [...new Set(saved)];}catch{}
- return ['all'];
-}
-function saveSourceFilter(){
- try{localStorage.setItem('potok-source-filter',JSON.stringify(sourceFilter));}catch{}
-}
-function sourceSelectionLabel(){
- if(!sourceFilter.length)return 'Источники не выбраны';
- if(sourceFilter.length===1)return sourceFilter[0]==='all'?'Общий доход':data.sources.find(s=>s.id===sourceFilter[0])?.name||'';
- return sourceFilter.includes('all')?`Общий доход + ${sourceFilter.length-1}`:`Выбрано источников: ${sourceFilter.length}`;
-}
-function setSourceFilterOpen(open,focus=false){
- $('source-filter-panel').hidden=!open;$('source-filter-trigger').setAttribute('aria-expanded',String(open));
- if(focus)(open?$('source-toggle-all'):$('source-filter-trigger')).focus();
-}
-function updateSourceFilter(){
- $('source-filter-label').textContent=sourceSelectionLabel();
- $('source-filter-trigger').setAttribute('aria-label','Источники дохода: '+sourceSelectionLabel());
- document.querySelectorAll('[data-filter-source]').forEach(input=>{input.checked=sourceFilter.includes(input.value);});
- const all=$('source-toggle-all'),complete=sourceFilter.length===data.sources.length+1;
- all.checked=complete;all.indeterminate=sourceFilter.length>0&&!complete;
- all.setAttribute('aria-label',complete?'Снять выделение':'Выбрать всё');all.parentElement.title=complete?'Снять выделение':'Выбрать всё';
-}
-function renderSourceFilter(){
- const choices=[{id:'all',name:'Общий доход',color:'var(--accent)',active:true},...sortSources(data.sources)];
- $('source-filter-options').innerHTML=choices.map(s=>`<label class="source-filter-option" style="--source-color:${s.color}"><input type="checkbox" data-filter-source value="${esc(s.id)}"><span class="source-checkbox" aria-hidden="true"></span><span class="source-option-name">${esc(s.name)}${s.active?'':'<small>Неактивный</small>'}</span><i class="source-dot" style="background:${s.color}" aria-hidden="true"></i></label>`).join('');
- updateSourceFilter();
-}
-$('source-filter-trigger').addEventListener('click',()=>setSourceFilterOpen($('source-filter-panel').hidden));
-$('source-filter-trigger').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();setSourceFilterOpen(true,true);}});
-$('source-filter').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('source-filter-panel').hidden){e.preventDefault();setSourceFilterOpen(false,true);}});
-// A label click can blur the trigger before activating its checkbox. Close only when focus actually lands outside.
-document.addEventListener('focusin',e=>{if(!$('source-filter').contains(e.target))setSourceFilterOpen(false);});
-document.addEventListener('pointerdown',e=>{if(!$('source-filter').contains(e.target))setSourceFilterOpen(false);});
-$('source-filter-options').addEventListener('change',e=>{
- const input=e.target.closest('[data-filter-source]');if(!input||!data)return;
- sourceFilter=input.checked?[...new Set([...sourceFilter,input.value])]:sourceFilter.filter(id=>id!==input.value);
- saveSourceFilter();updateSourceFilter();renderOverview({newSourcesOnly:true});
-});
-$('source-toggle-all').addEventListener('change',()=>{if(!data)return;sourceFilter=$('source-toggle-all').checked?['all',...sortSources(data.sources).map(s=>s.id)]:[];saveSourceFilter();updateSourceFilter();renderOverview({newSourcesOnly:true});});
 document.querySelectorAll('[data-chart]').forEach(b=>b.addEventListener('click',()=>{chartType=b.dataset.chart;document.querySelectorAll('[data-chart]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});renderChart();}));
-function render(){if(!data)return;const previous=sourceFilter.length;sourceFilter=sourceFilter.filter(id=>id==='all'||data.sources.some(s=>s.id===id));if(previous&&!sourceFilter.length)sourceFilter=['all'];renderSourceFilter();renderPeriod();renderOverview();renderTrash();if(view==='entries')renderEntries();$('updated-at').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
+function render(){if(!data)return;sourceFilterUi.prune();sourceFilterUi.render();renderPeriod();renderOverview();renderTrash();if(view==='entries')renderEntries();$('updated-at').textContent='Обновлено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
 function renderOverview(chartOptions){
  if(!data)return;
  const [from,to]=periodBounds(),s=summarize(data,from,to,sourceFilter),insights=incomeInsights(data,from,to,sourceFilter);
  $('hero-total').innerHTML=sourceFilter.length?esc(money(s.total)).replace(/₽/,'<span class="currency">₽</span>'):'—';
- $('hero-caption').textContent=`${s.observed.length} мес. с записями · ${sourceSelectionLabel()}`;
+ $('hero-caption').textContent=`${s.observed.length} мес. с записями · ${sourceFilterUi.label()}`;
  const percent=value=>value===null?'—':`${value>0?'+':''}${value.toLocaleString('ru-RU',{maximumFractionDigits:1})}%`;
  const compared=item=>item.amount===null?`${monthLabel(item.month,true)} · нет записи`:`${monthLabel(item.month,true)} · ${money(item.amount)}`;
  const metrics=[
@@ -236,7 +197,7 @@ function renderChart({animate=true,newSourcesOnly=false}={}){
  const model=incomeChart(data,...periodBounds(),sourceFilter),s=model.summary,container=$('chart');
  const legend=chartType==='bars'?model.bars:model.lines;
  $('chart-legend').innerHTML=legend.map(series=>`<span class="chart-legend-item"><i class="legend-line" style="background:${series.color}"></i><span>${esc(series.name)}</span></span>`).join('');
- container.setAttribute('aria-label',`Доходы по месяцам. ${sourceSelectionLabel()}. Стрелки влево и вправо — просмотр месяцев.`);
+ container.setAttribute('aria-label',`Доходы по месяцам. ${sourceFilterUi.label()}. Стрелки влево и вправо — просмотр месяцев.`);
   if(!s.observed.length){
    container.innerHTML=sourceFilter.length?'<div class="empty-state"><h3>Здесь появится ваш график</h3>Добавьте доход или выберите другой период.</div>':'<div class="empty-state"><h3>Выберите источники</h3>Отметьте их в списке над графиком.</div>';
    $('chart-range').textContent=sourceFilter.length?'Нет записей':'';$('chart-data-table').replaceChildren();chartModel=null;return;

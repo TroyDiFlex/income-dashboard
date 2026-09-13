@@ -25,7 +25,7 @@ function chart(type='line'){
  };
  const ctx=vm.createContext({$,data,view:'overview',chartType:type,sourceFilter:['all'],chartSelection:-1,
   incomeChart,chartGeometry,lineRevealStarts,money,monthLabel,esc:String,
-  sourceSelectionLabel:()=>'',periodBounds:()=>['2026-01','2026-04'],performance:{now:()=>now}
+  sourceFilterUi:{label:()=>''},periodBounds:()=>['2026-01','2026-04'],performance:{now:()=>now}
  });
  vm.runInContext(renderCode,ctx);
  const render=options=>ctx.renderChart(options);
