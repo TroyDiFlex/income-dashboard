@@ -31,8 +31,8 @@ function dispatch_(body) {
   requireSession_(body.token);
   if(body.action==='logout'){properties.deleteProperty(sessionKey_(body.token));CacheService.getScriptCache().remove(sessionKey_(body.token));return {loggedOut:true};}
   if(body.action==='read')return read_();
-  if(body.action==='backup')return backupEnvelope_(readModel_(),'download');
-  if(body.action==='createBackup')return createDriveBackup_('manual');
+  if(body.action==='backup')return downloadBackup_();
+  if(body.action==='createBackup')return createManualBackup_();
   if(body.action==='mutate')return mutate_(body);
   if(body.action==='trashMaintenance'){
     var authorization=ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);

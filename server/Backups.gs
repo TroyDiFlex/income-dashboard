@@ -15,6 +15,12 @@ function createDriveBackup_(reason,model){
   catch(error){if(error.apiCode)throw error;fail_('BACKUP','Не удалось создать резервную копию. Изменения не применены.');}
   return {fileId:file.getId(),name:name,createdAt:envelope.createdAt,reason:reason};
 }
+function lockedBackup_(reason,saveToDrive){
+  var lock=LockService.getScriptLock();if(!lock.tryLock(15000))fail_('BUSY','Другая запись ещё сохраняется. Попробуйте снова.');
+  try{var model=readModel_();return saveToDrive?createDriveBackup_(reason,model):backupEnvelope_(model,reason);}finally{lock.releaseLock();}
+}
+function downloadBackup_(){return lockedBackup_('download',false);}
+function createManualBackup_(){return lockedBackup_('manual',true);}
 function purgeOldBackups_(){
   var files=backupFolder_().getFiles(),deadline=Date.now()-BACKUP_RETENTION_MS_,deleted=0;
   while(files.hasNext()){

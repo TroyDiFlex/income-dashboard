@@ -23,6 +23,13 @@ test('downloaded backup contains visible and trashed records with a verifiable c
  assert.equal(result.result.checksum,checksum(result.result.data));assert.equal(h.backups.length,0);
 });
 
+test('manual backup reads cannot race a concurrent sheet mutation',async()=>{
+ const {h,token}=await setup();h.lockAttempts.length=0;
+ assert.equal(h.request({action:'backup',token}).ok,true);assert.deepEqual(h.lockAttempts,[15000]);
+ h.lockAttempts.length=0;
+ assert.equal(h.request({action:'createBackup',token}).ok,true);assert.deepEqual(h.lockAttempts,[15000]);
+});
+
 test('CSV import preserves trash and creates a Drive snapshot before changing sheets',async()=>{
  const {h,token,data}=await setup();
  const incoming={sources:[{id:'a',name:'Работа',active:true,color:'#a78bfa',order:0},{id:'c',name:'Фриланс',active:true,color:'#f5bd72',order:1}],entries:[{sourceId:'a',month:'2026-01',amount:150000},{sourceId:'c',month:'2026-02',amount:50000}]};
