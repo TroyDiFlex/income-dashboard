@@ -5,6 +5,7 @@ import {COLORS,currentMonth,monthLabel,shiftMonth,parseAmount,money,number,sortS
 import {setupDataTools} from './data-tools.js';
 import {entriesTableHtml,entryInputValue,monthFieldsHtml,sourceOptionsHtml} from './entries-view.js';
 import {setupSourceFilter} from './source-filter.js';
+import {sourceColorsHtml,sourceConfirmationCopy,trashHtml} from './source-view.js';
 import {setupTheme} from './theme.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -259,19 +260,14 @@ function monthTotal(){let total=0;try{document.querySelectorAll('[data-month-sou
 $('entry-month').addEventListener('change',()=>{if(!validMonth($('entry-month').value))return;if(!discardAllowed($('month-form'))){$('entry-month').value=renderedEntryMonth;return;}renderMonth();});$('month-fields').addEventListener('input',()=>{markDirty($('month-form'));monthTotal();});
 $('month-fields').addEventListener('click',e=>{const source=e.target.closest('[data-source-edit]');if(source)openSource(source.dataset.sourceEdit);});
 $('month-form').addEventListener('submit',e=>{e.preventDefault();try{const month=$('entry-month').value;if(!validMonth(month))throw new Error('Выберите корректный месяц.');const entries=[...document.querySelectorAll('[data-month-source]')].map(i=>({sourceId:i.dataset.monthSource,month,amount:parseAmount(i.value)}));if(!entries.length)throw new Error('Сначала добавьте источник.');mutate({type:'setEntries',entries},e.target,'month-error','Месяц сохранён');}catch(error){$('month-error').textContent=error.message;}});
-function renderColors(){$('source-colors').innerHTML=COLORS.map(c=>`<button type="button" class="color-option ${c===sourceColor?'selected':''}" data-color="${c}" style="background:${c}" aria-label="Цвет ${c}" aria-pressed="${c===sourceColor}"></button>`).join('');}
+function renderColors(){$('source-colors').innerHTML=sourceColorsHtml(COLORS,sourceColor);}
 function openSource(id){if(busy||view==='entries'&&entryMode==='month'&&!discardAllowed($('month-form')))return;dirtyForms.delete($('source-form'));const s=data.sources.find(s=>s.id===id);$('trash-source').hidden=!s;$('source-id').value=s?.id||'';$('source-name').value=s?.name||'';$('source-active').checked=s?.active??true;$('source-title').textContent=s?'Настроить источник':'Новый источник';$('source-error').textContent='';sourceColor=s?.color||COLORS[data.sources.length%COLORS.length];renderColors();$('source-dialog').showModal();}
 $('source-colors').addEventListener('click',e=>{const b=e.target.closest('[data-color]');if(b){sourceColor=b.dataset.color;markDirty($('source-form'));renderColors();}});$('add-source').addEventListener('click',()=>openSource());
 $('source-form').addEventListener('submit',e=>{e.preventDefault();const name=$('source-name').value.trim();if(!name){$('source-error').textContent='Укажите название источника.';return;}const id=$('source-id').value||crypto.randomUUID();mutate({type:'setSource',source:{id,name,color:sourceColor,active:$('source-active').checked,order:data.sources.find(s=>s.id===id)?.order??data.sources.length}},e.target,'source-error','Источник сохранён');});
 let sourceConfirmation=null,confirmationTimer;
 function renderTrash(){
  const trash=data?.trash||[];$('trash-count').textContent=trash.length;$('trash-count').hidden=!trash.length;
- $('trash-list').innerHTML=trash.length?[...trash].sort((a,b)=>b.deletedAt-a.deletedAt).map(s=>{
-  const remaining=s.expiresAt-Date.now(),days=Math.max(1,Math.ceil(remaining/86400000));
-  const deadline=new Date(s.expiresAt).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  const time=remaining<=0?'Срок хранения истёк':remaining<86400000?'Осталось меньше суток':`Осталось дней: ${days}`;
-  return `<article class="trash-item"><div class="trash-item-heading"><i class="source-dot" style="background:${s.color}"></i><h3>${esc(s.name)}</h3></div><p class="trash-deadline">${time} · до ${esc(deadline)}</p><p class="trash-meta">${s.active?'Активный':'Неактивный'} · Записей: ${s.entryCount} · ${esc(money(s.total))}</p><div class="trash-actions"><button type="button" class="button subtle" data-restore-source="${esc(s.id)}" ${remaining<=0?'disabled':''}>${ico('restore')}Восстановить</button><button type="button" class="text-button danger-text" data-delete-source="${esc(s.id)}">${ico('trash')}Удалить навсегда</button></div></article>`;
- }).join(''):`<div class="trash-empty">${ico('trash')}<h3>Корзина пуста</h3><p>Здесь появятся удалённые источники дохода.</p></div>`;
+ $('trash-list').innerHTML=trashHtml(trash);
 }
 function updateConfirmationButton(){
  if(!sourceConfirmation)return;
@@ -283,13 +279,13 @@ function updateConfirmationButton(){
 function confirmSource(type,id){
  if(busy)return;
  const source=(type==='trashSource'?data.sources:data.trash||[]).find(s=>s.id===id);if(!source)return;
- const permanent=type==='deleteSource',restore=type==='restoreSource';
- sourceConfirmation={type,sourceId:id,readyAt:performance.now()+(permanent?3000:0),label:permanent?'Удалить навсегда':restore?'Восстановить':'В корзину'};
- $('source-confirm-title').textContent=permanent?'Удалить источник навсегда?':restore?'Восстановить источник?':'Переместить источник в корзину?';
+ const copy=sourceConfirmationCopy(type);
+ sourceConfirmation={type,sourceId:id,readyAt:performance.now()+copy.delay,label:copy.label};
+ $('source-confirm-title').textContent=copy.title;
  $('source-confirm-name').textContent=source.name;
- $('source-confirm-description').textContent=permanent?'Источник и все его доходы за все годы будут удалены безвозвратно. Восстановить их не получится.':restore?'Источник вернётся вместе со всеми доходами за все годы и прежним статусом активности. Его доходы снова будут участвовать в расчётах.':'Источник и все его доходы за все годы исчезнут из таблиц и расчётов. Их можно восстановить в течение 30 дней. После этого данные удалятся безвозвратно.';
- $('source-confirm-error').textContent='';$('source-confirm-submit').className='button '+(permanent?'danger':'primary');
- clearInterval(confirmationTimer);updateConfirmationButton();if(permanent)confirmationTimer=setInterval(updateConfirmationButton,100);
+ $('source-confirm-description').textContent=copy.description;
+ $('source-confirm-error').textContent='';$('source-confirm-submit').className='button '+(copy.danger?'danger':'primary');
+ clearInterval(confirmationTimer);updateConfirmationButton();if(copy.delay)confirmationTimer=setInterval(updateConfirmationButton,100);
  $('source-confirm-dialog').showModal();
 }
 $('open-trash').addEventListener('click',()=>{if(!data||busy)return;renderTrash();$('trash-dialog').showModal();});
