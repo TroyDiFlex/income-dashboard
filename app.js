@@ -2,7 +2,7 @@ import {CONFIG} from './config.js';
 import {Api,SESSION_KEY} from './api.js';
 import {incomeChart,chartGeometry,lineRevealStarts} from './chart.js';
 import {MONTH_NAMES,COLORS,currentMonth,monthLabel,monthRange,shiftMonth,parseAmount,money,number,sortSources,summarize,incomeInsights,validateData,validMonth} from './model.js';
-import {backupFilename,csvFilename,exportWideCsv,parseBackup,planWideCsvImport,verifyBackupChecksum} from './data-transfer.js';
+import {setupDataTools} from './data-tools.js';
 import {setupTheme} from './theme.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -12,7 +12,6 @@ setupTheme();
 let comparisonMode='average';
 try{const saved=localStorage.getItem('potok-comparison-mode');if(['total','average'].includes(saved))comparisonMode=saved;}catch{}
 let data=null,view='overview',period='24',chartType='line',sourceFilter=['all'],selectedYear=currentMonth().slice(0,4),selectedMonth=currentMonth(),customFrom='',customTo='',tableYear=currentMonth().slice(0,4),entryMode=matchMedia('(max-width:650px)').matches?'month':'table',sourceColor=COLORS[0],busy=false,chartSelection=-1,toastTimer,authAttempt=0,restoring=false;
-let importPlan=null,importFileText='',importFileName='';
 const dirtyForms=new Set();let renderedEntryMonth=currentMonth();
 function markDirty(form){dirtyForms.add(form);}
 function discardAllowed(form){if(!form||!dirtyForms.has(form))return true;if(!window.confirm('Есть несохранённые изменения. Закрыть без сохранения?'))return false;dirtyForms.delete(form);return true;}
@@ -343,34 +342,7 @@ $('source-confirm-form').addEventListener('submit',async e=>{
  const success=await mutate(operation,e.target,'source-confirm-error',operation.type==='trashSource'?'Источник перемещён в корзину':operation.type==='restoreSource'?'Источник восстановлен':'Источник удалён навсегда');
  closeButtons.forEach(b=>b.disabled=false);if(success&&operation.type==='trashSource')$('source-dialog').close();updateConfirmationButton();
 });
-function downloadFile(contents,name,type){const blob=new Blob([contents],{type}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-function resetImport(){importPlan=null;importFileText='';importFileName='';$('import-form').reset();$('import-preview').textContent='Выберите файл для проверки.';$('import-preview').classList.remove('ready');$('import-error').textContent='';$('import-apply').disabled=true;}
-function importSummary(changes){return `Источники: +${changes.sourcesAdded}, изменится ${changes.sourcesChanged}. Суммы: +${changes.entriesAdded}, изменится ${changes.entriesChanged}, удалится ${changes.entriesDeleted}.`;}
-async function prepareImport(reuseText=false){
- const file=$('import-file').files[0];importPlan=null;$('import-apply').disabled=true;$('import-error').textContent='';$('import-preview').classList.remove('ready');
- if(!file&&!reuseText){$('import-preview').textContent='Выберите файл для проверки.';return;}
- try{
-  if(!reuseText){importFileName=file.name;importFileText=await file.text();}
-  if(importFileName.toLowerCase().endsWith('.json')||importFileText.trimStart().startsWith('{')){
-   const backup=parseBackup(importFileText);await verifyBackupChecksum(backup);const trashed=backup.data.sources.filter(source=>source.deletedAt).length;
-   importPlan={kind:'backup',backup};$('import-preview').textContent=`Полное восстановление: ${backup.data.sources.length} источников, ${backup.data.entries.length} сумм, в корзине ${trashed}. Текущие данные будут предварительно сохранены на Google Drive.`;
-  }else{
-   const plan=planWideCsvImport(data,importFileText,{mode:$('import-mode').value});importPlan={kind:'csv',plan};$('import-preview').textContent=importSummary(plan.changes);
-  }
-  $('import-preview').classList.add('ready');$('import-apply').disabled=false;
- }catch(error){$('import-preview').textContent=`Файл «${importFileName}» не прошёл проверку.`;$('import-error').textContent=error.message;}
-}
-$('data-tools').addEventListener('click',()=>{if(!data||busy||!discardAllowed(view==='entries'&&entryMode==='month'?$('month-form'):null))return;resetImport();$('backup-status').textContent='';$('data-dialog').showModal();});
-$('export-csv').addEventListener('click',()=>{if(!data)return;downloadFile(exportWideCsv(data),csvFilename(),'text/csv;charset=utf-8');toast('Редактируемая таблица CSV сохранена');});
-$('export-backup').addEventListener('click',async()=>{if(!data||busy)return;const button=$('export-backup');button.disabled=true;$('backup-status').textContent='Подготавливаем полную копию…';try{const backup=await api.backup();downloadFile(JSON.stringify(backup,null,2),backupFilename(backup.createdAt),'application/json;charset=utf-8');$('backup-status').textContent='Полная копия скачана.';}catch(error){$('backup-status').textContent=errorMessage(error);}finally{button.disabled=false;}});
-$('create-drive-backup').addEventListener('click',async()=>{if(!data||busy)return;const button=$('create-drive-backup');button.disabled=true;$('backup-status').textContent='Создаём копию…';try{const result=await api.createBackup();$('backup-status').textContent=`Создан файл ${result.name}.`;}catch(error){$('backup-status').textContent=errorMessage(error);}finally{button.disabled=false;}});
-$('import-file').addEventListener('change',prepareImport);
-$('import-mode').addEventListener('change',()=>{if(importFileText)prepareImport(true);});
-$('import-form').addEventListener('submit',async event=>{
- event.preventDefault();if(!importPlan||busy)return;
- const operation=importPlan.kind==='backup'?{type:'restoreBackup',backup:importPlan.backup}:{type:'importData',data:{sources:importPlan.plan.data.sources,entries:importPlan.plan.data.entries}};
- const success=await mutate(operation,event.target,'import-error',importPlan.kind==='backup'?'Резервная копия восстановлена':'Импорт применён');if(success)resetImport();
-});
+setupDataTools({api,getData:()=>data,isBusy:()=>busy,canOpen:()=>discardAllowed(view==='entries'&&entryMode==='month'?$('month-form'):null),mutate,toast,errorMessage});
 window.addEventListener('beforeunload',e=>{if(busy||dirtyForms.size){e.preventDefault();e.returnValue='';}});
 if(!CONFIG.apiUrl)showLogin('Подключение к Google ещё настраивается. Ваши доходы не хранятся в коде сайта.');
 else if(api.token)restoreSession();
