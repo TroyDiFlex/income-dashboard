@@ -97,16 +97,20 @@ export function niceCeiling(max) {
 }
 export function validateData(data) {
   if(!data||!Array.isArray(data.sources)||!Array.isArray(data.entries))throw new Error('Неверный формат данных.');
-  const ids=new Set();
-  for(const s of data.sources){if(typeof s.id!=='string'||ids.has(s.id)||typeof s.name!=='string'||!s.name.trim()||s.name.length>80||typeof s.active!=='boolean'||!/^#[0-9a-f]{6}$/i.test(s.color))throw new Error('Некорректный источник.');ids.add(s.id);}
+  const ids=new Set(),names=new Set();
+  const addSource=s=>{
+    const name=typeof s?.name==='string'?s.name.trim().toLocaleLowerCase('ru-RU'):'';
+    if(!s||typeof s.id!=='string'||!/^[a-zA-Z0-9_-]{1,64}$/.test(s.id)||ids.has(s.id)||!name||s.name.length>80||names.has(name)||typeof s.active!=='boolean'||!/^#[0-9a-f]{6}$/i.test(s.color)||!Number.isInteger(s.order)||s.order<0||s.order>10000)throw new Error('Некорректный или повторный источник.');
+    ids.add(s.id);names.add(name);
+  };
+  for(const s of data.sources)addSource(s);
   const keys=new Set();
   for(const e of data.entries){const key=e.sourceId+'|'+e.month;if(!ids.has(e.sourceId)||!validMonth(e.month)||!Number.isSafeInteger(e.amount)||e.amount<0||e.amount>999999999999||keys.has(key))throw new Error('Некорректная или повторная запись.');keys.add(key);}
   if(data.trash!==undefined){
     if(!Array.isArray(data.trash))throw new Error('Неверный формат корзины.');
     for(const s of data.trash){
-      validateData({sources:[s],entries:[]});
-      if(ids.has(s.id)||!Number.isSafeInteger(s.deletedAt)||s.deletedAt<=0||s.expiresAt!==s.deletedAt+30*86400000||!Number.isSafeInteger(s.entryCount)||s.entryCount<0||!Number.isSafeInteger(s.total)||s.total<0)throw new Error('Некорректный источник в корзине.');
-      ids.add(s.id);
+      addSource(s);
+      if(!Number.isSafeInteger(s.deletedAt)||s.deletedAt<=0||s.expiresAt!==s.deletedAt+30*86400000||!Number.isSafeInteger(s.entryCount)||s.entryCount<0||!Number.isSafeInteger(s.total)||s.total<0)throw new Error('Некорректный источник в корзине.');
     }
   }
   return data;

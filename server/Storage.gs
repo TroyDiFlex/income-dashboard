@@ -45,7 +45,7 @@ function validMonth_(value){return typeof value==='string'&&/^(19|20|21)\d{2}-(0
 function validSource_(s){return s&&typeof s.id==='string'&&/^[a-zA-Z0-9_-]{1,64}$/.test(s.id)&&typeof s.name==='string'&&s.name.trim().length>0&&s.name.length<=80&&typeof s.active==='boolean'&&typeof s.color==='string'&&/^#[0-9a-f]{6}$/i.test(s.color)&&Number.isInteger(s.order)&&s.order>=0&&s.order<=10000;}
 function validAmount_(amount){return Number.isSafeInteger(amount)&&amount>=0&&amount<=999999999999;}
 function validateModel_(sources,entries){
-  var ids={};sources.forEach(function(s){if(!validSource_(s)||ids[s.id])fail_('SCHEMA','Некорректный или повторный источник в Google Таблице.');ids[s.id]=true;});
+  var ids={},names={};sources.forEach(function(s){var name=typeof s.name==='string'?s.name.trim().toLowerCase():'';if(!validSource_(s)||ids[s.id]||names[name])fail_('SCHEMA','Некорректный или повторный источник в Google Таблице.');ids[s.id]=true;names[name]=true;});
   var keys={};entries.forEach(function(e){var key=e.sourceId+'|'+e.month;if(!ids[e.sourceId]||!validMonth_(e.month)||!validAmount_(e.amount)||keys[key])fail_('SCHEMA','Проверьте месяцы, суммы и повторные записи в Google Таблице.');keys[key]=true;});
 }
 function safeText_(text){return /^[=+@-]/.test(text)?"'"+text:text;}

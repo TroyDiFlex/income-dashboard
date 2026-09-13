@@ -11,6 +11,11 @@ test('explicit zero counts as an observed month',()=>{const s=summarize(data,'20
 test('sorting status never drops inactive sources',()=>assert.deepEqual(sortSources(sources).map(s=>s.id),['b','a']));
 test('ceiling follows scale with modest headroom',()=>{for(const max of [150,2000000,10000000,73000000])assert.ok(niceCeiling(max)>max&&niceCeiling(max)<max*1.4);});
 test('duplicate source/month entries rejected',()=>assert.throws(()=>validateData({...data,entries:[...data.entries,data.entries[0]]})));
+test('source validation matches server IDs, order and unique-name invariants',()=>{
+ assert.throws(()=>validateData({...data,sources:[...sources,{...sources[0],id:'bad id',name:'C'}]}),/источник/);
+ assert.throws(()=>validateData({...data,sources:sources.map(source=>source.id==='a'?{...source,order:-1}:source)}),/источник/);
+ assert.throws(()=>validateData({...data,sources:[sources[0],{...sources[1],name:' a '}]}),/повторный источник/);
+});
 
 test('source averages include recorded zeros and do not decay after deactivation',()=>{
  const s=summarize(data,'2025-01','2026-09');

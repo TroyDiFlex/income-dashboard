@@ -9,7 +9,7 @@ function mutate_(body){
       var source=op.source;if(!validSource_(source))fail_('VALIDATION','Проверьте название и цвет источника.');
       source={id:source.id,name:source.name.trim(),active:source.active,color:source.color,order:source.order};
       if(current.sources.some(function(s){return s.id===source.id&&s.deletedAt;}))fail_('VALIDATION','Источник находится в корзине. Сначала восстановите его.');
-      if(current.sources.some(function(s){return s.id!==source.id&&s.name.toLowerCase()===source.name.toLowerCase();}))fail_('VALIDATION','Источник с таким названием уже существует, в том числе в корзине.');
+      if(current.sources.some(function(s){return s.id!==source.id&&s.name.trim().toLowerCase()===source.name.toLowerCase();}))fail_('VALIDATION','Источник с таким названием уже существует, в том числе в корзине.');
       var index=current.sources.findIndex(function(s){return s.id===source.id;});
       if(index<0){if(current.sources.length>=200)fail_('VALIDATION','Достигнут предел: 200 источников.');current.sources.push(source);}else current.sources[index]=source;
       validateModel_(current.sources,current.entries);writeSources_(current.sources);

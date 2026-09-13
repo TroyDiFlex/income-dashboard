@@ -49,3 +49,7 @@ test('server enforces authentication, validates writes, detects conflicts and re
  h.request({action:'logout',token});assert.equal(h.request({action:'read',token}).code,'SESSION');
 });
 test('invalid manual sheet values fail closed',async()=>{const h=await harness();h.storage['Источники'].push(['a','A','Неизвестно','#a78bfa',0]);const login=h.request({action:'login',proof:h.proof});assert.equal(login.code,'SCHEMA');});
+test('duplicate source names in a manually edited sheet fail closed',async()=>{
+ const h=await harness();h.storage['Источники'].push(['a','Работа','Активный','#a78bfa',0],['b',' работа ','Неактивный','#5ed9bc',1]);
+ assert.equal(h.request({action:'login',proof:h.proof}).code,'SCHEMA');
+});
