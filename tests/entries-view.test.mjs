@@ -33,3 +33,11 @@ test('month editor and entry dialog preserve cents, zeroes and inactive labels',
  assert.equal(entryInputValue(data,'active','2026-02'),'');
  assert.match(sourceOptionsHtml(data),/Архив · неактивный/);
 });
+
+test('table totals preserve recorded zero while leaving missing months empty',()=>{
+ const zeroData={sources:[data.sources[0]],entries:[{sourceId:'active',month:'2026-01',amount:0}]};
+ const html=entriesTableHtml(zeroData,'2026','2026-02');
+ const total=html.match(/<tr class="table-total">(.*?)<\/tr>/)[1];
+ assert.match(total,/<td>0<\/td>/);
+ assert.match(total,/<td>—<\/td>/);
+});
