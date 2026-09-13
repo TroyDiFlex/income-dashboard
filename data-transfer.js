@@ -3,6 +3,8 @@ import {currentMonth,monthRange,parseAmount,sortSources,validateData,validMonth}
 export const BACKUP_SCHEMA='potok-income-backup';
 export const BACKUP_VERSION=1;
 export const CSV_DELETE_MARKER='—';
+export const MAX_SOURCES=200;
+export const MAX_ENTRIES=20000;
 const CSV_FIXED_HEADERS=['ID','Источник','Статус','Цвет','Порядок'];
 
 const quote=value=>{
@@ -44,15 +46,22 @@ export function exportWideCsv(data) {
 
 export function parseCsv(text) {
   text=String(text).replace(/^\ufeff/,'');
-  const rows=[];let row=[],cell='',quoted=false;
+  const rows=[];let row=[],cell='',quoted=false,afterQuote=false;
   for(let i=0;i<text.length;i++){
     const char=text[i];
     if(quoted){
       if(char==='"'&&text[i+1]==='"'){cell+='"';i++;}
-      else if(char==='"')quoted=false;
+      else if(char==='"'){quoted=false;afterQuote=true;}
       else cell+=char;
-    }else if(char==='"'&&cell==='')quoted=true;
-    else if(char===';'){row.push(cell);cell='';}
+    }else if(afterQuote){
+      if(char===';'){row.push(cell);cell='';afterQuote=false;}
+      else if(char==='\n'){row.push(cell);rows.push(row);row=[];cell='';afterQuote=false;}
+      else if(char==='\r'||char===' '||char==='\t')continue;
+      else throw new Error('После закрывающей кавычки найден лишний текст.');
+    }else if(char==='"'){
+      if(cell!=='')throw new Error('Кавычка внутри неэкранированного значения CSV.');
+      quoted=true;
+    }else if(char===';'){row.push(cell);cell='';}
     else if(char==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell='';}
     else cell+=char;
   }
@@ -103,6 +112,7 @@ export function planWideCsvImport(current,text,{mode='merge',idFactory=()=>crypt
   const imported=[],ids=new Set(),names=new Set();
   for(let index=1;index<rows.length;index++){
     const row=rows[index];if(row.every(value=>value.trim()===''))continue;
+    if(row.slice(rows[0].length).some(value=>value.trim()!==''))throw new Error(`Строка ${index+1}: найдены данные без заголовка столбца.`);
     const source=parseSourceRow(row,index+1,idFactory),nameKey=source.name.toLocaleLowerCase('ru-RU');
     if(ids.has(source.id))throw new Error(`Строка ${index+1}: повторяется ID источника.`);
     if(names.has(nameKey))throw new Error(`Строка ${index+1}: повторяется название источника.`);
@@ -111,6 +121,7 @@ export function planWideCsvImport(current,text,{mode='merge',idFactory=()=>crypt
   if(!imported.length)throw new Error('В CSV нет источников.');
   const sources=new Map(current.sources.map(source=>[source.id,{...source}]));
   for(const {source} of imported)sources.set(source.id,source);
+  if(sources.size>MAX_SOURCES)throw new Error(`Допустимо не более ${MAX_SOURCES} источников.`);
   const allNames=new Set();
   for(const source of sources.values()){
     const key=source.name.toLocaleLowerCase('ru-RU');if(allNames.has(key))throw new Error(`Название «${source.name}» уже используется другим источником.`);allNames.add(key);
@@ -124,6 +135,7 @@ export function planWideCsvImport(current,text,{mode='merge',idFactory=()=>crypt
     entries.set(key,{sourceId:source.id,month,amount});
   });
   const result={...current,sources:[...sources.values()],entries:[...entries.values()].sort((a,b)=>a.month.localeCompare(b.month)||a.sourceId.localeCompare(b.sourceId))};
+  if(result.entries.length>MAX_ENTRIES)throw new Error(`Допустимо не более ${MAX_ENTRIES} сумм.`);
   validateData(result);
   return {mode,months,data:result,changes:diffData(current,result)};
 }
@@ -133,6 +145,7 @@ export function parseBackup(text) {
   if(backup?.schema!==BACKUP_SCHEMA||backup?.version!==BACKUP_VERSION)throw new Error('Это не поддерживаемая резервная копия «Потока».');
   if(!Number.isSafeInteger(backup.createdAt)||backup.createdAt<=0||typeof backup.checksum!=='string'||!/^[0-9a-f]{64}$/.test(backup.checksum))throw new Error('В резервной копии повреждены метаданные.');
   if(!backup.data||!Array.isArray(backup.data.sources)||!Array.isArray(backup.data.entries))throw new Error('В резервной копии отсутствуют данные.');
+  if(backup.data.sources.length>MAX_SOURCES||backup.data.entries.length>MAX_ENTRIES)throw new Error('Резервная копия превышает допустимый размер данных.');
   const sources=backup.data.sources.map(source=>{
     if(source.deletedAt!==undefined&&(!Number.isSafeInteger(source.deletedAt)||source.deletedAt<=0))throw new Error('В резервной копии повреждена дата корзины.');
     const copy={...source};delete copy.deletedAt;return copy;

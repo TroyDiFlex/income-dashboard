@@ -10,7 +10,8 @@ var TRASH_RETENTION_MS_=30*24*60*60*1000;
 var BACKUP_RETENTION_MS_=90*24*60*60*1000;
 var BACKUP_SCHEMA_='potok-income-backup';
 var BACKUP_VERSION_=1;
-var MAX_REQUEST_CHARS_=3000000;
+// The browser accepts a 3 MiB import file; JSON escaping and the request envelope need headroom.
+var MAX_REQUEST_CHARS_=4*1024*1024;
 function doGet() { return json_({ok:true,result:{service:'potok',version:4}}); }
 function doPost(e) {
   try {
