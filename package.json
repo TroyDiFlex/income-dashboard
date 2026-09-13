@@ -6,7 +6,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "check": "node --check app.js && node --check api.js && node --check chart.js && node --check data-tools.js && node --check data-transfer.js && node --check model.js && node --check pwa.js && node --check source-filter.js && node --check theme.js && node --check theme-head.js",
+    "check": "node --check app.js && node --check api.js && node --check chart.js && node --check data-tools.js && node --check data-transfer.js && node --check entries-view.js && node --check model.js && node --check pwa.js && node --check source-filter.js && node --check theme.js && node --check theme-head.js",
     "test": "node --test tests/*.test.mjs"
   }
 }
