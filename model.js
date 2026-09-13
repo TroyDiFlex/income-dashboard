@@ -13,9 +13,12 @@ export function shiftMonth(value, offset) {
 }
 export function monthRange(from, to) {
   if (!validMonth(from) || !validMonth(to) || from > to) return [];
-  const result = []; let y = Number(from.slice(0,4)), m = Number(from.slice(5));
-  for (let i=0;i<2400;i++) { const key=`${y}-${String(m).padStart(2,'0')}`; if(key>to) break; result.push(key); if(++m===13){m=1;y++;} }
-  return result;
+  const start=Number(from.slice(0,4))*12+Number(from.slice(5))-1;
+  const end=Number(to.slice(0,4))*12+Number(to.slice(5))-1;
+  return Array.from({length:end-start+1},(_,offset)=>{
+    const index=start+offset;
+    return `${Math.floor(index/12)}-${String(index%12+1).padStart(2,'0')}`;
+  });
 }
 export function parseAmount(input) {
   const clean=String(input).trim().replace(/[\s\u00a0\u202f₽]/g,'').replace(',','.');

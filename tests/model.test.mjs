@@ -5,6 +5,11 @@ const sources=[{id:'a',name:'A',active:false,color:'#a78bfa',order:0},{id:'b',na
 const data={sources,entries:[{month:'2025-01',sourceId:'a',amount:100000},{month:'2025-03',sourceId:'b',amount:0},{month:'2025-03',sourceId:'a',amount:200000}]};
 test('money is exact cents, blank is missing, zero is recorded',()=>{assert.equal(parseAmount(' 20 613,15 ₽'),2061315);assert.equal(parseAmount('0'),0);assert.equal(parseAmount(''),null);for(const value of ['-1','1.234','1e3','NaN','a'])assert.throws(()=>parseAmount(value));});
 test('month ranges cross years',()=>assert.deepEqual(monthRange('2024-12','2025-02'),['2024-12','2025-01','2025-02']));
+test('month ranges never silently truncate the supported history',()=>{
+ const range=monthRange('1900-01','2199-12');
+ assert.equal(range.length,3600);assert.equal(range[0],'1900-01');assert.equal(range.at(-1),'2199-12');
+ assert.deepEqual(monthRange('2025-02','2025-01'),[]);
+});
 test('month shifting crosses year boundaries',()=>{assert.equal(shiftMonth('2025-01',-1),'2024-12');assert.equal(shiftMonth('2025-12',2),'2026-02');assert.throws(()=>shiftMonth('bad',1));});
 test('missing months do not dilute observed average, inactive income included',()=>{const s=summarize(data,'2025-01','2025-03');assert.equal(s.total,300000);assert.equal(s.average,150000);assert.equal(s.months.length,3);assert.equal(s.months[1].count,0);assert.equal(s.activeSources,1);assert.equal(s.sources[0].id,'a');assert.equal(s.best.month,'2025-03');});
 test('explicit zero counts as an observed month',()=>{const s=summarize(data,'2025-01','2025-03','b');assert.equal(s.observed.length,1);assert.equal(s.total,0);assert.equal(s.average,0);});
