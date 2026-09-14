@@ -1,7 +1,7 @@
 /**
  * Potok API. Deploy as a web app executing as the owner.
  * Public source contains NO credentials or income records.
- * Script properties: SPREADSHEET_ID, AUTH_SALT, AUTH_HASH, BACKUP_FOLDER_ID.
+ * Script properties: SPREADSHEET_ID, AUTH_SALT, AUTH_HASH; BACKUP_FOLDER_ID is created during backup setup.
  * AUTH_HASH = SHA-256(hex(PBKDF2-SHA256(password, UTF8(AUTH_SALT), 600000, 32))).
  * Every data operation requires an expiring random bearer session.
  */
@@ -43,7 +43,7 @@ function dispatch_(body) {
   if(body.action==='backupMaintenance'){
     var backupAuthorization=ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);
     if(backupAuthorization.getAuthorizationStatus()===ScriptApp.AuthorizationStatus.REQUIRED)return {scheduled:false,authorizationUrl:backupAuthorization.getAuthorizationUrl()};
-    ensureBackupTrigger_();var saved=createDriveBackup_('scheduled');purgeOldBackups_();return {scheduled:true,backup:saved};
+    ensureBackupFolder_();ensureBackupTrigger_();var saved=createDriveBackup_('scheduled');purgeOldBackups_();return {scheduled:true,backup:saved};
   }
   fail_('BAD_REQUEST','Неизвестное действие.');
 }

@@ -8,6 +8,15 @@ function backupFolder_(){
   if(!id)fail_('BACKUP_SETUP','Для безопасной операции сначала настройте папку резервных копий.');
   try{return DriveApp.getFolderById(id);}catch(error){fail_('BACKUP_SETUP','Папка резервных копий недоступна. Проверьте BACKUP_FOLDER_ID и разрешения.');}
 }
+function ensureBackupFolder_(){
+  var properties=PropertiesService.getScriptProperties(),id=properties.getProperty('BACKUP_FOLDER_ID');
+  if(id)return backupFolder_();
+  try{
+    var folder=DriveApp.createFolder('Potok Backups');
+    properties.setProperty('BACKUP_FOLDER_ID',folder.getId());
+    return folder;
+  }catch(error){fail_('BACKUP_SETUP','Не удалось создать папку резервных копий на Google Drive.');}
+}
 function backupName_(createdAt){return 'potok-backup-'+new Date(createdAt).toISOString().replace(/[:.]/g,'-')+'.json';}
 function createDriveBackup_(reason,model){
   var envelope=backupEnvelope_(model||readModel_(),reason),name=backupName_(envelope.createdAt),file;

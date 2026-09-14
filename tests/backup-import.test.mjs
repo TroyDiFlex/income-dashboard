@@ -77,3 +77,10 @@ test('daily backups install one trigger and purge only expired Potok snapshots',
  assert.equal(h.backups.length,2);h.advance(90*DAY+1);h.runScheduledBackup();
  assert.equal(h.backups.filter(file=>file.trashed).length,2);assert.equal(h.backups.filter(file=>!file.trashed).length,1);
 });
+
+test('daily backup setup creates and remembers its Drive folder when missing',async()=>{
+ const {h,token}=await setup();delete h.props.BACKUP_FOLDER_ID;
+ const result=h.request({action:'backupMaintenance',token});
+ assert.equal(result.ok,true);assert.equal(result.result.scheduled,true);
+ assert.equal(h.props.BACKUP_FOLDER_ID,'test-backups');assert.equal(h.backups.length,1);
+});
