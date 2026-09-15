@@ -15,15 +15,26 @@ test('chart controls start with the selected linear chart, then bars and smooth'
  assert.match(app,/\bchartType='line'/);
 });
 
-test('overview defaults to 24 months and keeps explicit long-range choices',async()=>{
+test('overview keeps only the useful period choices and defaults to all time',async()=>{
  const periods=[...html.matchAll(/<button\b([^>]*\bdata-period="([^"]+)"[^>]*)>/g)];
- assert.deepEqual(periods.map(([, ,period])=>period),['12','24','36','all','year','custom']);
- assert.deepEqual(periods.filter(([,attributes])=>/class="selected"/.test(attributes)).map(([, ,period])=>period),['24']);
+ assert.deepEqual(periods.map(([, ,period])=>period),['all','year','custom']);
+ assert.deepEqual(periods.filter(([,attributes])=>/class="selected"/.test(attributes)).map(([, ,period])=>period),['all']);
  assert.ok(!periods.some(([, ,period])=>period==='month'));
  assert.match(html,/<button data-mode="month">По месяцу<\/button>/);
- const app=await readFile(new URL('../app.js',import.meta.url),'utf8');assert.match(app,/period='24'/);assert.match(app,/shiftMonth\(end,1-Number\(period\)\)/);
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8');assert.match(app,/period='all'/);assert.doesNotMatch(app,/shiftMonth\(end,1-Number\(period\)\)/);
  const css=await readFile(new URL('../style.css',import.meta.url),'utf8');
  assert.match(css,/\[hidden\]\{display:none!important\}/);
+});
+
+test('source comparison controls the list, donut and share legend together',async()=>{
+ const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
+ const breakdowns=app.slice(app.indexOf('function renderBreakdowns'),app.indexOf('let shareLayoutFrame'));
+ const handler=app.slice(app.indexOf("$('comparison-mode').addEventListener"),app.indexOf('let chartModel=null'));
+ assert.match(app,/let comparisonMode='total'/);
+ assert.match(html,/class="selected" data-comparison="total" aria-pressed="true" aria-controls="comparison donut share-legend"/);
+ assert.match(breakdowns,/x\[comparisonMode\]/);
+ assert.match(breakdowns,/source\[comparisonMode\]/);
+ assert.match(handler,/renderBreakdowns\(summarize\(/);
 });
 
 test('overview replaces the duplicated total card with longitudinal comparisons',async()=>{
