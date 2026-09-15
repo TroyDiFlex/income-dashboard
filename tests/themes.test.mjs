@@ -40,7 +40,7 @@ test('head branding synchronizes theme color, favicon, Apple icon, and manifest'
  assert.match(html,/manifest-src 'self'/);
  assert.match(head,/meta\[name="theme-color"\]/);
  assert.match(head,/data:image\/svg\+xml/);
- assert.match(head,/manifests\/\$\{key\}\.webmanifest\?v=1/);
+ assert.match(head,/manifests\/\$\{key\}\.webmanifest\?v=2/);
  assert.match(head,/icons\/themes\/\$\{key\}-apple\.png\?v=1/);
  assert.match(theme,/potok-theme-change/);
 });
@@ -50,8 +50,9 @@ test('every selectable theme and accent has stable install assets',async()=>{
  assert.equal(files.length,28);
  for(const file of files){
   const manifest=JSON.parse(await readFile(new URL(`manifests/${file}`,root),'utf8'));
-  assert.equal(manifest.id,'../');
-  assert.equal(manifest.start_url,'../');
+  assert.equal(manifest.id,'/income-dashboard/');
+  assert.equal(manifest.start_url,'/income-dashboard/');
+  assert.equal(manifest.scope,'/income-dashboard/');
   assert.equal(manifest.icons.length,3);
   for(const icon of manifest.icons)await access(new URL(`manifests/${icon.src.split('?')[0]}`,root));
   await access(new URL(`icons/themes/${file.replace('.webmanifest','')}-apple.png`,root));

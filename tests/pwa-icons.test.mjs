@@ -46,8 +46,9 @@ async function pngPixels(src) {
 }
 
 test('PWA keeps its identity and separates normal icons from system-maskable icons', () => {
-  assert.equal(manifest.id, './');
-  assert.equal(manifest.start_url, './');
+  assert.equal(manifest.id, '/income-dashboard/');
+  assert.equal(manifest.start_url, '/income-dashboard/');
+  assert.equal(manifest.scope, '/income-dashboard/');
   assert.deepEqual(manifest.icons.filter(icon => icon.purpose === 'any').map(icon => icon.sizes), ['192x192', '512x512']);
   assert.equal(manifest.icons.filter(icon => icon.purpose === 'maskable').length, 1);
   assert.ok(manifest.icons.every(icon => ['any', 'maskable'].includes(icon.purpose)));

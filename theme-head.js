@@ -35,7 +35,7 @@
     const manifest = document.getElementById('app-manifest');
     const apple = document.getElementById('apple-touch-icon');
     if (favicon) favicon.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
-    if (manifest) manifest.href = `manifests/${key}.webmanifest?v=1`;
+    if (manifest) manifest.href = `manifests/${key}.webmanifest?v=2`;
     if (apple) apple.href = `icons/themes/${key}-apple.png?v=1`;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.content = state.background;
