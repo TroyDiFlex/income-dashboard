@@ -45,8 +45,8 @@ test('overview replaces the duplicated total card with longitudinal comparisons'
 });
 
 test('chart exposes the selected monthly values as an accessible table',async()=>{
- assert.match(html,/<details class="chart-data">/);
- assert.match(html,/<div id="chart-data-table" class="chart-data-table"><\/div>/);
+ assert.doesNotMatch(html,/<details class="chart-data">/);
+ assert.match(html,/<div id="chart-data-table" class="sr-only"><\/div>/);
  const app=await readFile(new URL('../app.js',import.meta.url),'utf8');
  assert.match(app,/<caption>Доходы по месяцам за выбранный период<\/caption>/);
  assert.match(app,/<th scope="col">Месяц<\/th>/);
