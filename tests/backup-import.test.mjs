@@ -70,12 +70,25 @@ test('failed import write rolls the sheet back while retaining the pre-import ba
 
 test('daily backups install one trigger and purge only expired Potok snapshots',async()=>{
  const {h,token}=await setup();
+ h.props.BACKUP_CLEANUP_ENABLED='true';
  assert.equal(h.request({action:'backupMaintenance',token}).ok,true);
  assert.equal(h.request({action:'backupMaintenance',token}).ok,true);
  const triggers=h.triggers.filter(trigger=>trigger.getHandlerFunction()==='createScheduledBackup');
  assert.equal(triggers.length,1);assert.equal(triggers[0].days,1);assert.equal(triggers[0].hour,4);
  assert.equal(h.backups.length,2);h.advance(90*DAY+1);h.runScheduledBackup();
  assert.equal(h.backups.filter(file=>file.trashed).length,2);assert.equal(h.backups.filter(file=>!file.trashed).length,1);
+});
+
+test('scheduled and maintenance backups preserve the complete archive by default',async()=>{
+ const {h,token}=await setup();
+ h.request({action:'backupMaintenance',token});
+ h.advance(365*DAY);h.runScheduledBackup();
+ const renewed=h.request({action:'login',proof:h.proof}).result.token;
+ assert.equal(h.request({action:'backupMaintenance',token:renewed}).ok,true);
+ assert.equal(h.backups.length,3);
+ assert.ok(h.backups.every(file=>!file.trashed));
+ h.props.BACKUP_CLEANUP_ENABLED='false';h.advance(365*DAY);h.runScheduledBackup();
+ assert.ok(h.backups.every(file=>!file.trashed));
 });
 
 test('daily backup setup creates and remembers its Drive folder when missing',async()=>{

@@ -31,6 +31,8 @@ function lockedBackup_(reason,saveToDrive){
 function downloadBackup_(){return lockedBackup_('download',false);}
 function createManualBackup_(){return lockedBackup_('manual',true);}
 function purgeOldBackups_(){
+  // Archive preservation is the default. Cleanup requires a deliberate server setting.
+  if(PropertiesService.getScriptProperties().getProperty('BACKUP_CLEANUP_ENABLED')!=='true')return 0;
   var files=backupFolder_().getFiles(),deadline=Date.now()-BACKUP_RETENTION_MS_,deleted=0;
   while(files.hasNext()){
     var file=files.next();
